@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import DOMPurify from 'dompurify';
+import styles from './App.module.css';
 
 // 許可する最小限のタグと属性（必要に応じて増やせる）
 const ALLOWED_TAGS = [
@@ -104,7 +105,6 @@ const IconStrike = () => (
   </svg>
 );
 
-// シンプルなSVGアイコンコンポーネント
 const IconSave = () => (
   <svg
     width="20"
@@ -280,7 +280,7 @@ function App() {
 
   // 保存処理
   const handleSave = () => {
-    if (!editingDate) return; // 念のためガード
+    if (!editingDate) return;
     const ymd = editingDate.toISOString().split('T')[0];
     const cleanHtml = sanitizeHtml(noteHtml || '').trim() || '<p><br></p>';
 
@@ -353,13 +353,10 @@ function App() {
     if (mode !== 'form') return;
     const el = editorRef.current;
     if (!el) return;
-    // 初期描画時だけDOMへ入れる（入力中にDOMを差し替えない）
     const clean = sanitizeHtml(noteHtml || '<p><br></p>');
     if (el.innerHTML !== clean) {
       el.innerHTML = clean;
     }
-    // キャレット維持のため focus は任意
-    // el.focus();
   }, [mode, editingDate, editingIndex]);
 
   // カスタムカレンダーコンポーネント
@@ -387,93 +384,32 @@ function App() {
     };
 
     return (
-      <div
-        style={{
-          width: '100%',
-          maxWidth: '100%',
-          margin: '0 auto 2rem',
-          background: '#fff',
-          borderRadius: '16px',
-          padding: '1.5rem',
-          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-          fontSize: '1rem',
-          border: 'none',
-          boxSizing: 'border-box',
-        }}
-      >
+      <div className={styles.calendar}>
         {/* ナビゲーション */}
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '1rem',
-            color: '#333',
-          }}
-        >
-          <button
-            onClick={() => changeMonth(-1)}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: '#333',
-              fontSize: '1rem',
-              fontWeight: 'bold',
-              padding: '0.5rem 1rem',
-              cursor: 'pointer',
-              transition: 'color 0.2s ease',
-            }}
-            onMouseEnter={(e) => (e.target.style.color = '#1e90ff')}
-            onMouseLeave={(e) => (e.target.style.color = '#333')}
-          >
+        <div className={styles.calendarNav}>
+          <button onClick={() => changeMonth(-1)} className={styles.navButton}>
             ‹
           </button>
-          <div
-            style={{
-              fontSize: '1.1rem',
-              fontWeight: 'bold',
-            }}
-          >
+          <div className={styles.calendarTitle}>
             {currentYear}年 {currentMonth + 1}月
           </div>
-          <button
-            onClick={() => changeMonth(1)}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: '#333',
-              fontSize: '1rem',
-              fontWeight: 'bold',
-              padding: '0.5rem 1rem',
-              cursor: 'pointer',
-              transition: 'color 0.2s ease',
-            }}
-            onMouseEnter={(e) => (e.target.style.color = '#1e90ff')}
-            onMouseLeave={(e) => (e.target.style.color = '#333')}
-          >
+          <button onClick={() => changeMonth(1)} className={styles.navButton}>
             ›
           </button>
         </div>
 
         {/* 曜日ヘッダー */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(7, 1fr)',
-            gap: '1px',
-            marginBottom: '0.5rem',
-          }}
-        >
+        <div className={styles.weekdays}>
           {['日', '月', '火', '水', '木', '金', '土'].map((day, index) => (
             <div
               key={day}
-              style={{
-                textAlign: 'center',
-                fontSize: '0.9rem',
-                fontWeight: 'bold',
-                padding: '0.5rem 0',
-                color: index === 0 ? 'red' : index === 6 ? '#3b82f6' : '#333',
-              }}
+              className={`${styles.weekday} ${
+                index === 0
+                  ? styles.sunday
+                  : index === 6
+                  ? styles.saturday
+                  : ''
+              }`}
             >
               {day}
             </div>
@@ -481,13 +417,7 @@ function App() {
         </div>
 
         {/* 日付グリッド */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(7, 1fr)',
-            gap: '1px',
-          }}
-        >
+        <div className={styles.daysGrid}>
           {days.map((date, index) => {
             const ymd = date.toISOString().split('T')[0];
             const isCurrentMonth = date.getMonth() === currentMonth;
@@ -497,75 +427,27 @@ function App() {
             const hasRecord = records[ymd]?.length > 0;
             const dayOfWeek = date.getDay();
 
-            let textColor = isCurrentMonth ? '#333' : '#bbb';
-            if (isCurrentMonth) {
-              if (dayOfWeek === 0) textColor = '#e53935';
-              if (dayOfWeek === 6) textColor = '#1e88e5';
-            }
-
-            const tileStyle = {
-              aspectRatio: '1 / 1',
-              padding: '2px 0',
-              boxSizing: 'border-box',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              textAlign: 'center',
-              borderRadius: '8px',
-              transition: 'background 0.2s ease, transform 0.2s ease',
-              cursor: 'pointer',
-              border: 'none',
-              background: 'transparent',
-              color: textColor,
-              fontSize: '1rem',
-            };
-
-            if (isToday && !isSelected) {
-              tileStyle.background = '#f0f0f0';
-              tileStyle.fontWeight = 'bold';
-            }
-
-            if (isSelected) {
-              tileStyle.backgroundColor = '#1e90ff';
-              tileStyle.color = '#fff';
-              tileStyle.fontWeight = 'bold';
-            }
+            const tileClasses = [
+              styles.dayTile,
+              !isCurrentMonth && styles.otherMonth,
+              isCurrentMonth && dayOfWeek === 0 && styles.sunday,
+              isCurrentMonth && dayOfWeek === 6 && styles.saturday,
+              isToday && !isSelected && styles.today,
+              isSelected && styles.selected,
+            ]
+              .filter(Boolean)
+              .join(' ');
 
             return (
               <button
                 key={index}
                 onClick={() => handleDateClick(date)}
-                style={tileStyle}
-                onMouseEnter={(e) => {
-                  if (!isSelected) {
-                    e.target.style.background = '#e0f0ff';
-                    e.target.style.transform = 'scale(1.05)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!isSelected) {
-                    e.target.style.background = isToday
-                      ? '#f0f0f0'
-                      : 'transparent';
-                    e.target.style.transform = 'scale(1)';
-                  }
-                }}
+                className={tileClasses}
               >
                 {hasRecord ? (
                   <div
-                    style={{
-                      width: '28px',
-                      height: '28px',
-                      borderRadius: '50%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: 'white',
-                      fontWeight: 'bold',
-                      backgroundColor: records[ymd][0].color,
-                      transition: 'transform 0.2s ease',
-                    }}
+                    className={styles.recordBadge}
+                    style={{ backgroundColor: records[ymd][0].color }}
                   >
                     {date.getDate()}
                   </div>
@@ -581,27 +463,10 @@ function App() {
   };
 
   return (
-    <div
-      style={{
-        fontFamily: "'Noto Sans JP', sans-serif",
-        backgroundColor: '#f7f7f9',
-        color: '#333',
-        lineHeight: 1.6,
-        minHeight: '100vh',
-      }}
-    >
-      <div style={{ maxWidth: '500px', margin: '0 auto', textAlign: 'left' }}>
+    <div className={styles.container}>
+      <div className={styles.wrapper}>
         {/* ヘッダー */}
-        <h1
-          style={{
-            fontSize: '2rem',
-            textAlign: 'center',
-            marginBottom: '1rem',
-            padding: '1rem 0',
-          }}
-        >
-          TRENO
-        </h1>
+        <h1 className={styles.header}>TRENO</h1>
 
         {/* メインコンテンツ */}
         {mode === 'calendar' && (
@@ -610,22 +475,8 @@ function App() {
 
             {/* 選択された日付の記録表示 */}
             {records[selectedDate.toISOString().split('T')[0]]?.length > 0 && (
-              <div
-                style={{
-                  background: '#fff',
-                  borderRadius: '16px',
-                  padding: '1.5rem',
-                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-                  margin: '0 1rem 2rem',
-                }}
-              >
-                <h3
-                  style={{
-                    fontSize: '1.25rem',
-                    marginBottom: '1rem',
-                    fontWeight: 'bold',
-                  }}
-                >
+              <div className={styles.recordsSection}>
+                <h3 className={styles.recordsTitle}>
                   {selectedDate.toLocaleDateString('ja-JP', {
                     month: 'long',
                     day: 'numeric',
@@ -639,37 +490,15 @@ function App() {
                   (record, index) => (
                     <div
                       key={index}
-                      style={{
-                        border: '1px solid #ccc',
-                        padding: '1rem',
-                        marginBottom: '1rem',
-                        borderLeft: `8px solid ${record.color}`,
-                        background: '#fff',
-                        borderRadius: '8px',
-                      }}
+                      className={styles.recordCard}
+                      style={{ borderLeft: `8px solid ${record.color}` }}
                     >
-                      <div
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'flex-start',
-                          marginBottom: '0.5rem',
-                        }}
-                      >
-                        <p style={{ margin: 0, fontWeight: 'bold' }}>
-                          {record.part}
-                        </p>
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <div className={styles.recordHeader}>
+                        <p className={styles.recordPart}>{record.part}</p>
+                        <div className={styles.recordActions}>
                           <button
                             onClick={() => handleEditRecord(record, index)}
-                            style={{
-                              background: 'none',
-                              border: 'none',
-                              cursor: 'pointer',
-                              padding: '0.25rem',
-                              color: '#666',
-                            }}
-                            className="icon-button"
+                            className={styles.iconButton}
                             title="編集"
                           >
                             <IconEdit />
@@ -681,55 +510,30 @@ function App() {
                                 index
                               )
                             }
-                            style={{
-                              background: 'none',
-                              border: 'none',
-                              cursor: 'pointer',
-                              padding: '0.25rem',
-                              color: '#e53935',
-                            }}
-                            className="icon-button"
+                            className={`${styles.iconButton} ${styles.danger}`}
                             title="削除"
                           >
                             <IconTrash />
                           </button>
                         </div>
                       </div>
-                      
+
                       <div
                         dangerouslySetInnerHTML={{
                           __html: sanitizeHtml(record.note || ''),
                         }}
-                        style={{
-                          fontSize: '0.9rem',
-                          lineHeight: 1.6,
-                          marginBottom: '0.5rem',
-                          color: '#666',
-                          overflowWrap: 'anywhere',
-                        }}
+                        className={styles.recordNote}
                       />
+
                       {/* 画像表示 */}
                       {record.images && record.images.length > 0 && (
-                        <div
-                          style={{
-                            display: 'flex',
-                            flexWrap: 'wrap',
-                            gap: '0.5rem',
-                            marginTop: '0.5rem',
-                          }}
-                        >
+                        <div className={styles.recordImages}>
                           {record.images.map((img, imgIndex) => (
                             <img
                               key={imgIndex}
                               src={img}
                               alt={`記録画像 ${imgIndex + 1}`}
-                              style={{
-                                maxWidth: '100px',
-                                maxHeight: '100px',
-                                objectFit: 'cover',
-                                borderRadius: '4px',
-                                border: '1px solid #ddd',
-                              }}
+                              className={styles.recordImage}
                             />
                           ))}
                         </div>
@@ -743,37 +547,16 @@ function App() {
         )}
 
         {mode === 'form' && editingDate && (
-          <div className="record-form-wrapper" style={{ padding: '0 1rem' }}>
+          <div className={styles.formWrapper}>
             {/* ヘッダー */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '1rem',
-                marginBottom: '1.5rem',
-              }}
-            >
+            <div className={styles.formHeader}>
               <button
                 onClick={() => setMode('calendar')}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  padding: '0.5rem',
-                  borderRadius: '50%',
-                }}
-                className="icon-button"
+                className={styles.iconButton}
               >
                 <IconArrowLeft />
               </button>
-              <h2
-                style={{
-                  fontSize: '1.25rem',
-                  margin: 0,
-                  fontWeight: 'bold',
-                  textAlign: 'left',
-                }}
-              >
+              <h2 className={styles.formTitle}>
                 {editingDate.toLocaleDateString('ja-JP', {
                   year: 'numeric',
                   month: 'long',
@@ -784,7 +567,7 @@ function App() {
             </div>
 
             {/* 部位入力 */}
-            <label className="label">
+            <label className={styles.label}>
               <strong>部位</strong>
               <br />
               <input
@@ -792,110 +575,76 @@ function App() {
                 value={inputParts}
                 onChange={(e) => setInputParts(e.target.value)}
                 placeholder="例：胸・肩"
-                style={{
-                  width: '50%',
-                  fontSize: '1rem',
-                  padding: '0.5rem',
-                  color: '#333',
-                  backgroundColor: '#fff',
-                }}
+                className={styles.input}
               />
             </label>
 
             {/* カラー選択 */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '1rem',
-                margin: '1rem 0',
-              }}
-            >
+            <div className={styles.colorSelector}>
               <div
                 onClick={() => setShowColorOptions(!showColorOptions)}
-                style={{
-                  width: '28px',
-                  height: '28px',
-                  aspectRatio: '1',
-                  backgroundColor: selectedColor,
-                  borderRadius: '50%',
-                  border: '2px solid #000',
-                  cursor: 'pointer',
-                }}
+                className={styles.colorPreview}
+                style={{ backgroundColor: selectedColor }}
               ></div>
 
               <div
-                className={`color-options ${
-                  showColorOptions ? 'show' : 'hide'
+                className={`${styles.colorOptions} ${
+                  showColorOptions ? styles.show : styles.hide
                 }`}
-                style={{
-                  marginLeft: '1rem',
-                  display: 'flex',
-                  gap: '8px',
-                  opacity: showColorOptions ? 1 : 0,
-                  transform: showColorOptions
-                    ? 'translateY(0)'
-                    : 'translateY(-10px)',
-                  pointerEvents: showColorOptions ? 'auto' : 'none',
-                  transition: 'opacity 0.3s ease, transform 0.3s ease',
-                }}
               >
                 {[
-                  '#e74c3c', // 赤（そのまま）
-                  '#2ecc71', // 緑（そのまま）
-                  '#f1c40f', // 黄（そのまま）
-                  '#8e44ad', // 紫（そのまま）
-                  '#1A2996', // 濃ネイビー（コイネイビー）
-                  '#ff66b3', // 明るめピンク
+                  '#e74c3c',
+                  '#2ecc71',
+                  '#f1c40f',
+                  '#8e44ad',
+                  '#1A2996',
+                  '#ff66b3',
                   '#000000',
                 ]
                   .filter((color) => color !== selectedColor)
                   .map((color) => (
                     <div
                       key={color}
-                      className="color-option"
+                      className={styles.colorOption}
                       onClick={() => {
                         setSelectedColor(color);
                         setShowColorOptions(false);
                       }}
-                      style={{
-                        width: '24px',
-                        height: '24px',
-                        backgroundColor: color,
-                        border: '1px solid #ccc',
-                        borderRadius: '50%',
-                        cursor: 'pointer',
-                        transition: 'transform 0.2s',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.transform = 'scale(1.2)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.transform = 'scale(1)';
-                      }}
+                      style={{ backgroundColor: color }}
                     />
                   ))}
               </div>
             </div>
 
             {/* 記録入力 */}
-            <div className="record-label">
-              <div className="record-label__header">
+            <div className={styles.recordLabel}>
+              <div>
                 <strong>記録</strong>
               </div>
 
-              {/* ツールバー（onMouseDownでフォーカス維持） */}
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-                <button type="button" onMouseDown={exec('bold')} title="太字">
+              {/* ツールバー */}
+              <div className={styles.toolbar}>
+                <button
+                  type="button"
+                  onMouseDown={exec('bold')}
+                  title="太字"
+                  className={styles.toolbarButton}
+                >
                   <IconBold />
                 </button>
-                <button type="button" onMouseDown={exec('italic')} title="斜体">
+                <button
+                  type="button"
+                  onMouseDown={exec('italic')}
+                  title="斜体"
+                  className={styles.toolbarButton}
+                >
                   <IconItalic />
                 </button>
                 <button
                   type="button"
                   onMouseDown={exec('insertUnorderedList')}
                   title="箇条書き"
+                  className={styles.toolbarButton}
                 >
                   <IconList />
                 </button>
@@ -903,6 +652,7 @@ function App() {
                   type="button"
                   onMouseDown={exec('insertOrderedList')}
                   title="番号リスト"
+                  className={styles.toolbarButton}
                 >
                   <IconNumberList />
                 </button>
@@ -910,6 +660,7 @@ function App() {
                   type="button"
                   onMouseDown={exec('strikeThrough')}
                   title="取り消し線"
+                  className={styles.toolbarButton}
                 >
                   <IconStrike />
                 </button>
@@ -924,17 +675,15 @@ function App() {
                 }}
                 onCompositionEnd={() => {
                   composingRef.current = false;
-                  // 確定時にだけ state 更新（→ 再描画の回数を最小化）
                   const html = editorRef.current?.innerHTML || '';
                   setNoteHtml(sanitizeHtml(html));
                 }}
                 onInput={() => {
-                  if (composingRef.current) return; // 変換中は state 更新しない
+                  if (composingRef.current) return;
                   const html = editorRef.current?.innerHTML || '';
                   setNoteHtml(sanitizeHtml(html));
                 }}
                 onPaste={(e) => {
-                  // ペーストは手動サニタイズ + insertHTML
                   e.preventDefault();
                   const html = e.clipboardData.getData('text/html');
                   const text = e.clipboardData.getData('text/plain');
@@ -943,63 +692,22 @@ function App() {
                   );
                   document.execCommand('insertHTML', false, insert);
                 }}
-                style={{
-                  width: '80%',
-                  padding: '1rem',
-                  fontSize: '1rem',
-                  border: '1px solid #ccc',
-                  borderRadius: '8px',
-                  minHeight: '200px',
-                  outline: 'none',
-                  lineHeight: 1.6,
-                  color: '#333',
-                  backgroundColor: '#fff',
-                  whiteSpace: 'pre-wrap',
-                  overflowWrap: 'anywhere',
-                }}
+                className={styles.editor}
               />
 
               {/* 画像プレビュー */}
               {images.length > 0 && (
-                <div
-                  style={{
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    gap: '0.5rem',
-                    marginBottom: '1rem',
-                  }}
-                >
+                <div className={styles.imagePreview}>
                   {images.map((img, index) => (
-                    <div key={index} style={{ position: 'relative' }}>
+                    <div key={index} className={styles.imagePreviewItem}>
                       <img
                         src={img}
                         alt={`プレビュー ${index + 1}`}
-                        style={{
-                          maxWidth: '100px',
-                          maxHeight: '100px',
-                          objectFit: 'cover',
-                          borderRadius: '4px',
-                          border: '1px solid #ddd',
-                        }}
+                        className={styles.previewImage}
                       />
                       <button
                         onClick={() => removeImage(index)}
-                        style={{
-                          position: 'absolute',
-                          top: '-5px',
-                          right: '-5px',
-                          background: '#e53935',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '50%',
-                          width: '20px',
-                          height: '20px',
-                          fontSize: '12px',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}
+                        className={styles.removeImageButton}
                       >
                         ×
                       </button>
@@ -1009,19 +717,7 @@ function App() {
               )}
             </div>
 
-            <div
-              style={{
-                position: 'sticky',
-                bottom: 0,
-                padding: '0.5rem',
-                margin: '0 -1rem',
-                display: 'flex',
-                gap: '2rem',
-                justifyContent: 'center',
-                alignItems: 'center',
-                zIndex: 100,
-              }}
-            >
+            <div className={styles.formFooter}>
               <div>
                 <input
                   type="file"
@@ -1030,40 +726,13 @@ function App() {
                   onChange={handleImageUpload}
                   style={{ display: 'none' }}
                 />
-                <label
-                  htmlFor="image-upload"
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: '0.5rem',
-                    cursor: 'pointer',
-                    color: '#555',
-                    backgroundColor: '#fff',
-                    borderRadius: '8px',
-                    border: '1px solid #ddd',
-                  }}
-                >
+                <label htmlFor="image-upload" className={styles.imageUploadLabel}>
                   <IconCamera />
                 </label>
               </div>
 
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button
-                  onClick={handleSave}
-                  title="保存"
-                  style={{
-                    backgroundColor: '#1e90ff',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '8px',
-                    padding: '0.5rem 1rem',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                  }}
-                >
+              <div>
+                <button onClick={handleSave} title="保存" className={styles.saveButton}>
                   <IconSave />
                   保存
                 </button>
@@ -1074,35 +743,7 @@ function App() {
 
         {/* フローティング追加ボタン（カレンダーモードでのみ表示） */}
         {mode === 'calendar' && (
-          <button
-            onClick={handleAddRecord}
-            style={{
-              position: 'fixed',
-              bottom: '1.5rem',
-              right: '1.5rem',
-              width: '56px',
-              height: '56px',
-              borderRadius: '50%',
-              backgroundColor: '#1e90ff',
-              color: 'white',
-              border: 'none',
-              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'all 0.2s ease',
-              zIndex: 1000,
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.backgroundColor = '#0066cc';
-              e.target.style.transform = 'scale(1.1)';
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.backgroundColor = '#1e90ff';
-              e.target.style.transform = 'scale(1)';
-            }}
-          >
+          <button onClick={handleAddRecord} className={styles.fab}>
             <IconPlus />
           </button>
         )}

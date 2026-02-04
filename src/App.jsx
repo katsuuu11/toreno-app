@@ -29,8 +29,6 @@ const sanitizeHtml = (html) =>
 
 const STORAGE_KEY_RECORDS = 'treno_records_v1';
 const STORAGE_KEY_EDITBUFFERS = 'treno_editBuffers_v1';
-const MAX_IMAGES_PER_RECORD = 3;
-const MAX_IMAGE_DATA_LENGTH = 600 * 1024;
 
 const migrateRecords = (parsed) => {
   if (!parsed || typeof parsed !== 'object') return {};
@@ -424,10 +422,6 @@ function App() {
       localStorage.setItem(STORAGE_KEY_RECORDS, JSON.stringify(records));
     } catch (error) {
       console.warn('Failed to save records to storage', error);
-      if (!storageWarnedRef.current) {
-        alert('保存容量が上限に近いため保存に失敗しました。');
-        storageWarnedRef.current = true;
-      }
     }
   }, [records]);
 
@@ -439,10 +433,6 @@ function App() {
       );
     } catch (error) {
       console.warn('Failed to save edit buffers to storage', error);
-      if (!storageWarnedRef.current) {
-        alert('保存容量が上限に近いため保存に失敗しました。');
-        storageWarnedRef.current = true;
-      }
     }
   }, [editBuffers]);
 

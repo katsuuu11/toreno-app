@@ -29,6 +29,8 @@ const sanitizeHtml = (html) =>
 
 const STORAGE_KEY_RECORDS = 'treno_records_v1';
 const STORAGE_KEY_EDITBUFFERS = 'treno_editBuffers_v1';
+const MAX_IMAGES_PER_RECORD = 3;
+const MAX_IMAGE_DATA_LENGTH = 600 * 1024;
 
 const migrateRecords = (parsed) => {
   if (!parsed || typeof parsed !== 'object') return {};

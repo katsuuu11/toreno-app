@@ -27,6 +27,13 @@ const ALLOWED_ATTR = ['style', 'src', 'alt'];
 const sanitizeHtml = (html) =>
   DOMPurify.sanitize(html, { ALLOWED_TAGS, ALLOWED_ATTR });
 
+const formatDateKey = (date) => {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 const STORAGE_KEY_RECORDS = 'treno_records_v1';
 const STORAGE_KEY_EDITBUFFERS = 'treno_editBuffers_v1';
 const MAX_IMAGES_PER_RECORD = 3;
@@ -262,7 +269,14 @@ function App() {
 
   const editorRef = useRef(null);
   const composingRef = useRef(false);
-  const storageWarnedRef = useRef(false);
+  const storageWarnedRef = useRef(0);
+
+  const warnStorageError = (message) => {
+    const now = Date.now();
+    if (now - storageWarnedRef.current < 10000) return;
+    storageWarnedRef.current = now;
+    alert(message);
+  };
 
   // ツールバー用（フォーカス保持して exec）
   const exec = (cmd) => (e) => {
@@ -280,7 +294,7 @@ function App() {
   const handleAddRecord = () => {
     setEditingDate(selectedDate);
     setEditingIndex(null);
-    const ymd = selectedDate.toISOString().split('T')[0];
+    const ymd = formatDateKey(selectedDate);
     const buffer = editBuffers[ymd] || {};
     setInputParts(buffer.part || '');
     setNoteHtml(buffer.note || '');
@@ -357,8 +371,14 @@ function App() {
   // 保存処理
   const handleSave = () => {
     if (!editingDate) return;
-    const ymd = editingDate.toISOString().split('T')[0];
+    const ymd = formatDateKey(editingDate);
     const cleanHtml = sanitizeHtml(noteHtml || '').trim() || '<p><br></p>';
+    const noteText = cleanHtml.replace(/<br\s*\/?>/gi, '').replace(/<[^>]*>/g, '').trim();
+
+    if (!inputParts.trim() && !noteText && images.length === 0) {
+      alert('部位・記録・画像のいずれかを入力してください。');
+      return;
+    }
 
     const newRecord = {
       part: inputParts,
@@ -400,6 +420,7 @@ function App() {
 
   // 削除処理
   const handleDelete = (ymd, index) => {
+    if (!window.confirm('この記録を削除しますか？')) return;
     setRecords((prev) => {
       const updated = (prev[ymd]?.records || []).filter((_, i) => i !== index);
       if (updated.length === 0) {
@@ -414,7 +435,7 @@ function App() {
   // 編集バッファ更新
   useEffect(() => {
     if (!editingDate) return;
-    const ymd = editingDate.toISOString().split('T')[0];
+    const ymd = formatDateKey(editingDate);
     setEditBuffers((prev) => ({
       ...prev,
       [ymd]: {
@@ -430,6 +451,9 @@ function App() {
       localStorage.setItem(STORAGE_KEY_RECORDS, JSON.stringify(records));
     } catch (error) {
       console.warn('Failed to save records to storage', error);
+      warnStorageError(
+        '記録の保存に失敗しました。ブラウザの容量をご確認ください。'
+      );
     }
   }, [records]);
 
@@ -441,6 +465,9 @@ function App() {
       );
     } catch (error) {
       console.warn('Failed to save edit buffers to storage', error);
+      warnStorageError(
+        '編集中データの保存に失敗しました。ブラウザの容量をご確認ください。'
+      );
     }
   }, [editBuffers]);
 
@@ -514,7 +541,7 @@ function App() {
         {/* 日付グリッド */}
         <div className={styles.daysGrid}>
           {days.map((date, index) => {
-            const ymd = date.toISOString().split('T')[0];
+            const ymd = formatDateKey(date);
             const isCurrentMonth = date.getMonth() === currentMonth;
             const isToday = today.toDateString() === date.toDateString();
             const isSelected =
@@ -569,7 +596,7 @@ function App() {
             <CustomCalendar />
 
             {/* 選択された日付の記録表示 */}
-            {records[selectedDate.toISOString().split('T')[0]]?.records
+            {records[formatDateKey(selectedDate)]?.records
               ?.length > 0 && (
               <div className={styles.recordsSection}>
                 <h3 className={styles.recordsTitle}>
@@ -582,7 +609,7 @@ function App() {
                 </h3>
 
                 {/* 記録一覧 */}
-                {records[selectedDate.toISOString().split('T')[0]].records.map(
+                {records[formatDateKey(selectedDate)].records.map(
                   (record, index) => (
                     <div
                       key={index}
@@ -601,10 +628,7 @@ function App() {
                           </button>
                           <button
                             onClick={() =>
-                              handleDelete(
-                                selectedDate.toISOString().split('T')[0],
-                                index
-                              )
+                              handleDelete(formatDateKey(selectedDate), index)
                             }
                             className={`${styles.iconButton} ${styles.danger}`}
                             title="削除"

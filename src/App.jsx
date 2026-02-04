@@ -302,11 +302,6 @@ function App() {
   const handleImageUpload = (event) => {
     const input = event.target;
     const file = event.target.files[0];
-    if (images.length + 1 > MAX_IMAGES_PER_RECORD) {
-      alert('画像は最大3枚まで添付できます。');
-      if (input) input.value = '';
-      return;
-    }
     if (file) {
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -315,6 +310,11 @@ function App() {
           // 画像をリサイズ（最大幅400px）
           const canvas = document.createElement('canvas');
           const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            alert('画像の読み込みに失敗しました。');
+            if (input) input.value = '';
+            return;
+          }
 
           const maxWidth = 400;
           const ratio = Math.min(maxWidth / img.width, maxWidth / img.height);
@@ -330,7 +330,13 @@ function App() {
             if (input) input.value = '';
             return;
           }
-          setImages((prev) => [...prev, resizedImageData]);
+          setImages((prev) => {
+            if (prev.length + 1 > MAX_IMAGES_PER_RECORD) {
+              alert('画像は最大3枚まで添付できます。');
+              return prev;
+            }
+            return [...prev, resizedImageData];
+          });
           if (input) input.value = '';
         };
         img.src = e.target.result;

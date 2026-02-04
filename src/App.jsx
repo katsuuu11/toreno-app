@@ -302,7 +302,7 @@ function App() {
   const handleImageUpload = (event) => {
     const input = event.target;
     const file = event.target.files[0];
-    if (images.length >= MAX_IMAGES_PER_RECORD) {
+    if (images.length + 1 > MAX_IMAGES_PER_RECORD) {
       alert('画像は最大3枚まで添付できます。');
       if (input) input.value = '';
       return;

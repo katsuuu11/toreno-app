@@ -260,6 +260,7 @@ function App() {
 
   const editorRef = useRef(null);
   const composingRef = useRef(false);
+  const storageWarnedRef = useRef(false);
 
   // ツールバー用（フォーカス保持して exec）
   const exec = (cmd) => (e) => {
@@ -299,7 +300,13 @@ function App() {
 
   // 画像アップロード処理
   const handleImageUpload = (event) => {
+    const input = event.target;
     const file = event.target.files[0];
+    if (images.length >= MAX_IMAGES_PER_RECORD) {
+      alert('画像は最大3枚まで添付できます。');
+      if (input) input.value = '';
+      return;
+    }
     if (file) {
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -318,11 +325,19 @@ function App() {
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
           const resizedImageData = canvas.toDataURL('image/jpeg', 0.8);
+          if (resizedImageData.length > MAX_IMAGE_DATA_LENGTH) {
+            alert('画像サイズが大きすぎるため追加できません。');
+            if (input) input.value = '';
+            return;
+          }
           setImages((prev) => [...prev, resizedImageData]);
+          if (input) input.value = '';
         };
         img.src = e.target.result;
       };
       reader.readAsDataURL(file);
+    } else if (input) {
+      input.value = '';
     }
   };
 

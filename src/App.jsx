@@ -615,21 +615,26 @@ function App() {
                       key={index}
                       className={styles.recordCard}
                       style={{ borderLeft: `8px solid ${record.color}` }}
+                      onClick={() => handleEditRecord(record, index)}
                     >
                       <div className={styles.recordHeader}>
                         <p className={styles.recordPart}>{record.part}</p>
                         <div className={styles.recordActions}>
                           <button
-                            onClick={() => handleEditRecord(record, index)}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              handleEditRecord(record, index);
+                            }}
                             className={styles.iconButton}
                             title="編集"
                           >
                             <IconEdit />
                           </button>
                           <button
-                            onClick={() =>
-                              handleDelete(formatDateKey(selectedDate), index)
-                            }
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              handleDelete(formatDateKey(selectedDate), index);
+                            }}
                             className={`${styles.iconButton} ${styles.danger}`}
                             title="削除"
                           >

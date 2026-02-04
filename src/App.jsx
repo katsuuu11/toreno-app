@@ -27,6 +27,26 @@ const ALLOWED_ATTR = ['style', 'src', 'alt'];
 const sanitizeHtml = (html) =>
   DOMPurify.sanitize(html, { ALLOWED_TAGS, ALLOWED_ATTR });
 
+const STORAGE_KEY_RECORDS = 'treno_records_v1';
+const STORAGE_KEY_EDITBUFFERS = 'treno_editBuffers_v1';
+
+const migrateRecords = (parsed) => {
+  if (!parsed || typeof parsed !== 'object') return {};
+  const migrated = {};
+  Object.entries(parsed).forEach(([ymd, value]) => {
+    if (Array.isArray(value)) {
+      migrated[ymd] = { records: value };
+    } else if (
+      value &&
+      typeof value === 'object' &&
+      Array.isArray(value.records)
+    ) {
+      migrated[ymd] = { records: value.records };
+    }
+  });
+  return migrated;
+};
+
 // --- エディタ用アイコン ---
 const IconBold = () => (
   <svg
@@ -199,8 +219,41 @@ function App() {
   const [inputParts, setInputParts] = useState('');
   const [selectedColor, setSelectedColor] = useState('#e74c3c');
   const [showColorOptions, setShowColorOptions] = useState(false);
-  const [records, setRecords] = useState({});
-  const [editBuffers, setEditBuffers] = useState({});
+  const [records, setRecords] = useState(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY_RECORDS);
+      const migrated = migrateRecords(raw ? JSON.parse(raw) : null);
+      if (Object.keys(migrated).length > 0) {
+        return migrated;
+      }
+      const legacyRaw = localStorage.getItem('records');
+      const legacyMigrated = migrateRecords(
+        legacyRaw ? JSON.parse(legacyRaw) : null
+      );
+      if (Object.keys(legacyMigrated).length > 0) {
+        localStorage.setItem(
+          STORAGE_KEY_RECORDS,
+          JSON.stringify(legacyMigrated)
+        );
+        return legacyMigrated;
+      }
+      return {};
+    } catch (error) {
+      console.warn('Failed to load records from storage', error);
+      return {};
+    }
+  });
+  const [editBuffers, setEditBuffers] = useState(() => {
+    try {
+      const raw =
+        localStorage.getItem(STORAGE_KEY_EDITBUFFERS) ||
+        localStorage.getItem('editBuffers');
+      return raw ? JSON.parse(raw) : {};
+    } catch (error) {
+      console.warn('Failed to load edit buffers from storage', error);
+      return {};
+    }
+  });
   const [mode, setMode] = useState('calendar'); // 'calendar', 'form'
   const [editingIndex, setEditingIndex] = useState(null);
   const [images, setImages] = useState([]);
@@ -294,14 +347,15 @@ function App() {
     setRecords((prev) => {
       if (editingIndex !== null) {
         // 編集の場合
-        const updated = [...(prev[ymd] || [])];
-        updated[editingIndex] = newRecord;
-        return { ...prev, [ymd]: updated };
+        const updated = (prev[ymd]?.records || []).map((record, index) =>
+          index === editingIndex ? newRecord : record
+        );
+        return { ...prev, [ymd]: { records: updated } };
       } else {
         // 新規追加の場合
         return {
           ...prev,
-          [ymd]: [...(prev[ymd] || []), newRecord],
+          [ymd]: { records: [...(prev[ymd]?.records || []), newRecord] },
         };
       }
     });
@@ -324,14 +378,13 @@ function App() {
   // 削除処理
   const handleDelete = (ymd, index) => {
     setRecords((prev) => {
-      const updated = [...prev[ymd]];
-      updated.splice(index, 1);
+      const updated = (prev[ymd]?.records || []).filter((_, i) => i !== index);
       if (updated.length === 0) {
         const copy = { ...prev };
         delete copy[ymd];
         return copy;
       }
-      return { ...prev, [ymd]: updated };
+      return { ...prev, [ymd]: { records: updated } };
     });
   };
 
@@ -348,6 +401,25 @@ function App() {
       },
     }));
   }, [inputParts, noteHtml, selectedColor, editingDate]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY_RECORDS, JSON.stringify(records));
+    } catch (error) {
+      console.warn('Failed to save records to storage', error);
+    }
+  }, [records]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        STORAGE_KEY_EDITBUFFERS,
+        JSON.stringify(editBuffers)
+      );
+    } catch (error) {
+      console.warn('Failed to save edit buffers to storage', error);
+    }
+  }, [editBuffers]);
 
   useEffect(() => {
     if (mode !== 'form') return;
@@ -424,7 +496,7 @@ function App() {
             const isToday = today.toDateString() === date.toDateString();
             const isSelected =
               selectedDate.toDateString() === date.toDateString();
-            const hasRecord = records[ymd]?.length > 0;
+            const hasRecord = records[ymd]?.records?.length > 0;
             const dayOfWeek = date.getDay();
 
             const tileClasses = [
@@ -447,7 +519,7 @@ function App() {
                 {hasRecord ? (
                   <div
                     className={styles.recordBadge}
-                    style={{ backgroundColor: records[ymd][0].color }}
+                    style={{ backgroundColor: records[ymd].records[0].color }}
                   >
                     {date.getDate()}
                   </div>
@@ -474,7 +546,8 @@ function App() {
             <CustomCalendar />
 
             {/* 選択された日付の記録表示 */}
-            {records[selectedDate.toISOString().split('T')[0]]?.length > 0 && (
+            {records[selectedDate.toISOString().split('T')[0]]?.records
+              ?.length > 0 && (
               <div className={styles.recordsSection}>
                 <h3 className={styles.recordsTitle}>
                   {selectedDate.toLocaleDateString('ja-JP', {
@@ -486,7 +559,7 @@ function App() {
                 </h3>
 
                 {/* 記録一覧 */}
-                {records[selectedDate.toISOString().split('T')[0]].map(
+                {records[selectedDate.toISOString().split('T')[0]].records.map(
                   (record, index) => (
                     <div
                       key={index}

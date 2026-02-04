@@ -266,7 +266,6 @@ function App() {
   const [mode, setMode] = useState('calendar'); // 'calendar', 'form'
   const [editingIndex, setEditingIndex] = useState(null);
   const [images, setImages] = useState([]);
-  const [isEditorFocused, setIsEditorFocused] = useState(false);
 
   const editorRef = useRef(null);
   const composingRef = useRef(false);
@@ -818,8 +817,6 @@ function App() {
                   );
                   document.execCommand('insertHTML', false, insert);
                 }}
-                onFocus={() => setIsEditorFocused(true)}
-                onBlur={() => setIsEditorFocused(false)}
                 className={styles.editor}
               />
 
@@ -854,14 +851,9 @@ function App() {
                   onChange={handleImageUpload}
                   style={{ display: 'none' }}
                 />
-                {!isEditorFocused && (
-                  <label
-                    htmlFor="image-upload"
-                    className={styles.imageUploadLabel}
-                  >
-                    <IconCamera />
-                  </label>
-                )}
+                <label htmlFor="image-upload" className={styles.imageUploadLabel}>
+                  <IconCamera />
+                </label>
               </div>
 
               <div>
@@ -871,20 +863,6 @@ function App() {
                 </button>
               </div>
             </div>
-
-            {isEditorFocused && (
-              <div
-                className={styles.imageUploadBar}
-                onMouseDown={(event) => event.preventDefault()}
-              >
-                <label
-                  htmlFor="image-upload"
-                  className={styles.imageUploadLabel}
-                >
-                  <IconCamera />
-                </label>
-              </div>
-            )}
           </div>
         )}
 

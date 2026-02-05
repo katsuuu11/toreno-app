@@ -1,7 +1,7 @@
 /* App.module.css */
 
 /* レイアウト */
-.container {
+.appContainer {
   font-family: 'Noto Sans JP', sans-serif;
   background-color: #f7f7f9;
   color: #333;
@@ -16,7 +16,7 @@
 }
 
 /* ヘッダー */
-.header {
+.appHeader {
   font-size: 2rem;
   text-align: center;
   margin-bottom: 1rem;
@@ -215,125 +215,126 @@
 }
 
 /* フォーム */
-.formWrapper {
-  padding: 0 1rem;
-}
-
-.formHeader {
+.container {
+  min-height: 100vh;
+  background-color: #ffffff;
   display: flex;
+  flex-direction: column;
+  max-width: 28rem;
+  margin: 0 auto;
+}
+
+.header {
+  padding: 0.75rem 1rem;
+}
+
+.backButton {
+  display: inline-flex;
   align-items: center;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+  gap: 0.25rem;
+  color: #6b7280;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 0.875rem;
+  padding: 0;
+  transition: color 0.15s ease;
 }
 
-.formTitle {
-  font-size: 1.25rem;
-  margin: 0;
-  font-weight: bold;
-  text-align: left;
+.backButton:hover {
+  color: #1f2937;
 }
 
-.label {
-  display: block;
-  margin-bottom: 1rem;
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 0 1.5rem 1.5rem;
+  gap: 1.5rem;
 }
 
-.input {
-  width: 50%;
+.bodyPartInput {
+  width: 100%;
+  padding: 0.75rem;
   font-size: 1rem;
-  padding: 0.5rem;
-  color: #333;
-  background-color: #fff;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid #e5e7eb;
+  outline: none;
+  transition: border-color 0.15s ease;
 }
 
-.colorSelector {
+.bodyPartInput:focus {
+  border-bottom-color: #9ca3af;
+}
+
+.bodyPartInput::placeholder {
+  color: #9ca3af;
+}
+
+.colorSection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.colorLabel {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin: 0;
+}
+
+.colorPalette {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  margin: 1rem 0;
+  gap: 0.75rem;
 }
 
-.colorPreview {
-  width: 28px;
-  height: 28px;
+.colorButton {
+  width: 1.5rem;
+  height: 1.5rem;
   border-radius: 50%;
-  border: 2px solid #000;
+  border: none;
   cursor: pointer;
+  transition: transform 0.15s ease;
 }
 
-.colorOptions {
-  margin-left: 1rem;
+.colorButton:hover {
+  transform: scale(1.1);
+}
+
+.colorButtonSelected {
+  width: 1.75rem;
+  height: 1.75rem;
+}
+
+.notesWrapper {
+  flex: 1;
   display: flex;
-  gap: 8px;
-  transition: opacity 0.3s ease, transform 0.3s ease;
-}
-
-.colorOptions.hide {
-  opacity: 0;
-  transform: translateY(-10px);
-  pointer-events: none;
-}
-
-.colorOptions.show {
-  opacity: 1;
-  transform: translateY(0);
-  pointer-events: auto;
-}
-
-.colorOption {
-  width: 24px;
-  height: 24px;
-  border: 1px solid #ccc;
-  border-radius: 50%;
-  cursor: pointer;
-  transition: transform 0.2s;
-}
-
-.colorOption:hover {
-  transform: scale(1.2);
-}
-
-.recordLabel {
-  margin-bottom: 1rem;
-}
-
-.toolbar {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.toolbarButton {
-  background: #f0f0f0;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  padding: 0.4rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.2s;
-}
-
-.toolbarButton:hover {
-  background: #e0e0e0;
+  flex-direction: column;
+  min-height: 0;
+  gap: 0.75rem;
 }
 
 .editor {
-  width: 80%;
-  padding: 1rem;
+  flex: 1;
+  width: 100%;
+  min-height: 300px;
+  padding: 0.75rem;
   font-size: 1rem;
-  border: 1px solid #ccc;
-  border-radius: 8px;
-  min-height: 200px;
+  line-height: 1.625;
+  background: transparent;
+  border: 1px solid rgba(229, 231, 235, 0.5);
+  border-radius: 0.5rem;
   outline: none;
-  line-height: 1.6;
-  color: #333;
-  background-color: #fff;
+  transition: border-color 0.15s ease;
+  color: #111827;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+.editor:focus {
+  border-color: #e5e7eb;
 }
 
 .imagePreview {
@@ -372,45 +373,48 @@
   justify-content: center;
 }
 
-.formFooter {
-  position: sticky;
-  bottom: 0;
-  padding: 0.5rem;
-  margin: 0 -1rem;
+.actionBar {
   display: flex;
-  gap: 2rem;
-  justify-content: center;
   align-items: center;
-  z-index: 100;
+  justify-content: space-between;
+  padding-top: 0.5rem;
 }
 
-.imageUploadLabel {
+.imageButton {
+  padding: 0.625rem;
+  color: #6b7280;
+  background: transparent;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0.5rem;
-  cursor: pointer;
-  color: #555;
-  background-color: #fff;
-  border-radius: 8px;
-  border: 1px solid #ddd;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.imageButton:hover {
+  color: #1f2937;
+  background-color: #f3f4f6;
 }
 
 .saveButton {
-  background-color: #1e90ff;
-  color: white;
+  padding: 0.625rem 1.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #ffffff;
+  background-color: #1f2937;
   border: none;
-  border-radius: 8px;
-  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
   cursor: pointer;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  transition: background-color 0.2s;
+  transition: background-color 0.15s ease;
 }
 
 .saveButton:hover {
-  background-color: #0066cc;
+  background-color: #374151;
 }
 
 /* ボタン共通 */

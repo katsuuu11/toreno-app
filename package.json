@@ -10,14 +10,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@tiptap/extension-image": "3.0.7",
-    "@tiptap/react": "3.x",
-    "@tiptap/starter-kit": "3.x",
     "dompurify": "^3.3.0",
     "react": "^19.1.0",
-    "react-calendar": "^6.0.0",
-    "react-dom": "^19.1.0",
-    "react-icons": "^4.10.1"
+    "react-dom": "^19.1.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.31.0",

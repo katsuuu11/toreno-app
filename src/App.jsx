@@ -38,6 +38,15 @@ const STORAGE_KEY_RECORDS = 'treno_records_v1';
 const STORAGE_KEY_EDITBUFFERS = 'treno_editBuffers_v1';
 const MAX_IMAGES_PER_RECORD = 3;
 const MAX_IMAGE_DATA_LENGTH = 600 * 1024;
+const COLOR_OPTIONS = [
+  { id: 'red', color: '#e74c3c' },
+  { id: 'green', color: '#2ecc71' },
+  { id: 'yellow', color: '#f1c40f' },
+  { id: 'purple', color: '#8e44ad' },
+  { id: 'blue', color: '#1A2996' },
+  { id: 'pink', color: '#ff66b3' },
+  { id: 'black', color: '#000000' },
+];
 
 const migrateRecords = (parsed) => {
   if (!parsed || typeof parsed !== 'object') return {};
@@ -55,84 +64,6 @@ const migrateRecords = (parsed) => {
   });
   return migrated;
 };
-
-// --- エディタ用アイコン ---
-const IconBold = () => (
-  <svg
-    width="18"
-    height="18"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-  >
-    <path d="M6 4h8a4 4 0 0 1 0 8H6zM6 12h9a4 4 0 0 1 0 8H6z" />
-  </svg>
-);
-
-const IconItalic = () => (
-  <svg
-    width="18"
-    height="18"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-  >
-    <line x1="19" y1="4" x2="10" y2="4" />
-    <line x1="14" y1="20" x2="5" y2="20" />
-    <line x1="15" y1="4" x2="9" y2="20" />
-  </svg>
-);
-
-const IconList = () => (
-  <svg
-    width="18"
-    height="18"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-  >
-    <line x1="10" y1="6" x2="21" y2="6" />
-    <line x1="10" y1="12" x2="21" y2="12" />
-    <line x1="10" y1="18" x2="21" y2="18" />
-    <circle cx="4" cy="6" r="1" />
-    <circle cx="4" cy="12" r="1" />
-    <circle cx="4" cy="18" r="1" />
-  </svg>
-);
-
-const IconNumberList = () => (
-  <svg
-    width="18"
-    height="18"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-  >
-    <line x1="10" y1="6" x2="21" y2="6" />
-    <line x1="10" y1="12" x2="21" y2="12" />
-    <line x1="10" y1="18" x2="21" y2="18" />
-    <path d="M4 5h1v2H4zM4 11h2l-2 2v1h2" />
-    <path d="M4 17h2v4H4z" />
-  </svg>
-);
-
-const IconStrike = () => (
-  <svg
-    width="18"
-    height="18"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-  >
-    <line x1="5" y1="12" x2="19" y2="12" />
-    <path d="M6 6a4 4 0 0 1 8 0v0.5M10 18a4 4 0 0 0 8 0v-0.5" />
-  </svg>
-);
 
 const IconSave = () => (
   <svg
@@ -227,7 +158,6 @@ function App() {
   const [editingDate, setEditingDate] = useState(null);
   const [inputParts, setInputParts] = useState('');
   const [selectedColor, setSelectedColor] = useState('#e74c3c');
-  const [showColorOptions, setShowColorOptions] = useState(false);
   const [records, setRecords] = useState(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY_RECORDS);
@@ -276,13 +206,6 @@ function App() {
     if (now - storageWarnedRef.current < 10000) return;
     storageWarnedRef.current = now;
     alert(message);
-  };
-
-  // ツールバー用（フォーカス保持して exec）
-  const exec = (cmd) => (e) => {
-    e.preventDefault();
-    editorRef.current?.focus();
-    document.execCommand(cmd);
   };
 
   // 日付クリック処理
@@ -413,7 +336,6 @@ function App() {
     setInputParts('');
     setNoteHtml('');
     setSelectedColor('#e74c3c');
-    setShowColorOptions(false);
     setEditingIndex(null);
     setImages([]);
   };
@@ -585,10 +507,10 @@ function App() {
   };
 
   return (
-    <div className={styles.container}>
+    <div className={styles.appContainer}>
       <div className={styles.wrapper}>
         {/* ヘッダー */}
-        <h1 className={styles.header}>TRENO</h1>
+        <h1 className={styles.appHeader}>TRENO</h1>
 
         {/* メインコンテンツ */}
         {mode === 'calendar' && (
@@ -672,178 +594,109 @@ function App() {
         )}
 
         {mode === 'form' && editingDate && (
-          <div className={styles.formWrapper}>
-            {/* ヘッダー */}
-            <div className={styles.formHeader}>
+          <div className={styles.container}>
+            <header className={styles.header}>
               <button
+                className={styles.backButton}
+                aria-label="カレンダーに戻る"
                 onClick={() => setMode('calendar')}
-                className={styles.iconButton}
+                type="button"
               >
                 <IconArrowLeft />
+                <span>戻る</span>
               </button>
-              <h2 className={styles.formTitle}>
-                {editingDate.toLocaleDateString('ja-JP', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                  weekday: 'short',
-                })}
-              </h2>
-            </div>
+            </header>
 
-            {/* 部位入力 */}
-            <label className={styles.label}>
-              <strong>部位</strong>
-              <br />
-              <input
-                type="text"
-                value={inputParts}
-                onChange={(e) => setInputParts(e.target.value)}
-                placeholder="例：胸・肩"
-                className={styles.input}
-              />
-            </label>
+            <main className={styles.main}>
+              <div>
+                <input
+                  type="text"
+                  value={inputParts}
+                  onChange={(e) => setInputParts(e.target.value)}
+                  placeholder="部位（胸／背中／脚 など自由入力）"
+                  className={styles.bodyPartInput}
+                />
+              </div>
 
-            {/* カラー選択 */}
-            <div className={styles.colorSelector}>
-              <div
-                onClick={() => setShowColorOptions(!showColorOptions)}
-                className={styles.colorPreview}
-                style={{ backgroundColor: selectedColor }}
-              ></div>
-
-              <div
-                className={`${styles.colorOptions} ${
-                  showColorOptions ? styles.show : styles.hide
-                }`}
-              >
-                {[
-                  '#e74c3c',
-                  '#2ecc71',
-                  '#f1c40f',
-                  '#8e44ad',
-                  '#1A2996',
-                  '#ff66b3',
-                  '#000000',
-                ]
-                  .filter((color) => color !== selectedColor)
-                  .map((color) => (
-                    <div
-                      key={color}
-                      className={styles.colorOption}
-                      onClick={() => {
-                        setSelectedColor(color);
-                        setShowColorOptions(false);
+              <div className={styles.colorSection}>
+                <p className={styles.colorLabel}>カレンダー表示色</p>
+                <div className={styles.colorPalette}>
+                  {COLOR_OPTIONS.map((option) => (
+                    <button
+                      key={option.id}
+                      onClick={() => setSelectedColor(option.color)}
+                      className={`${styles.colorButton} ${
+                        selectedColor === option.color
+                          ? styles.colorButtonSelected
+                          : ''
+                      }`}
+                      style={{
+                        backgroundColor: option.color,
+                        boxShadow:
+                          selectedColor === option.color
+                            ? `0 0 0 2px #fff, 0 0 0 4px ${option.color}`
+                            : undefined,
                       }}
-                      style={{ backgroundColor: color }}
+                      aria-label={`${option.id}色を選択`}
+                      aria-pressed={selectedColor === option.color}
+                      type="button"
                     />
                   ))}
-              </div>
-            </div>
-
-            {/* 記録入力 */}
-            <div className={styles.recordLabel}>
-              <div>
-                <strong>記録</strong>
-              </div>
-
-              {/* ツールバー */}
-              <div className={styles.toolbar}>
-                <button
-                  type="button"
-                  onMouseDown={exec('bold')}
-                  title="太字"
-                  className={styles.toolbarButton}
-                >
-                  <IconBold />
-                </button>
-                <button
-                  type="button"
-                  onMouseDown={exec('italic')}
-                  title="斜体"
-                  className={styles.toolbarButton}
-                >
-                  <IconItalic />
-                </button>
-                <button
-                  type="button"
-                  onMouseDown={exec('insertUnorderedList')}
-                  title="箇条書き"
-                  className={styles.toolbarButton}
-                >
-                  <IconList />
-                </button>
-                <button
-                  type="button"
-                  onMouseDown={exec('insertOrderedList')}
-                  title="番号リスト"
-                  className={styles.toolbarButton}
-                >
-                  <IconNumberList />
-                </button>
-                <button
-                  type="button"
-                  onMouseDown={exec('strikeThrough')}
-                  title="取り消し線"
-                  className={styles.toolbarButton}
-                >
-                  <IconStrike />
-                </button>
-              </div>
-
-              <div
-                ref={editorRef}
-                contentEditable
-                suppressContentEditableWarning
-                onCompositionStart={() => {
-                  composingRef.current = true;
-                }}
-                onCompositionEnd={() => {
-                  composingRef.current = false;
-                  const html = editorRef.current?.innerHTML || '';
-                  setNoteHtml(sanitizeHtml(html));
-                }}
-                onInput={() => {
-                  if (composingRef.current) return;
-                  const html = editorRef.current?.innerHTML || '';
-                  setNoteHtml(sanitizeHtml(html));
-                }}
-                onPaste={(e) => {
-                  e.preventDefault();
-                  const html = e.clipboardData.getData('text/html');
-                  const text = e.clipboardData.getData('text/plain');
-                  const insert = sanitizeHtml(
-                    html || (text || '').replace(/\n/g, '<br>')
-                  );
-                  document.execCommand('insertHTML', false, insert);
-                }}
-                className={styles.editor}
-              />
-
-              {/* 画像プレビュー */}
-              {images.length > 0 && (
-                <div className={styles.imagePreview}>
-                  {images.map((img, index) => (
-                    <div key={index} className={styles.imagePreviewItem}>
-                      <img
-                        src={img}
-                        alt={`プレビュー ${index + 1}`}
-                        className={styles.previewImage}
-                      />
-                      <button
-                        onClick={() => removeImage(index)}
-                        className={styles.removeImageButton}
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
                 </div>
-              )}
-            </div>
+              </div>
 
-            <div className={styles.formFooter}>
-              <div>
+              <div className={styles.notesWrapper}>
+                <div
+                  ref={editorRef}
+                  contentEditable
+                  suppressContentEditableWarning
+                  onCompositionStart={() => {
+                    composingRef.current = true;
+                  }}
+                  onCompositionEnd={() => {
+                    composingRef.current = false;
+                    const html = editorRef.current?.innerHTML || '';
+                    setNoteHtml(sanitizeHtml(html));
+                  }}
+                  onInput={() => {
+                    if (composingRef.current) return;
+                    const html = editorRef.current?.innerHTML || '';
+                    setNoteHtml(sanitizeHtml(html));
+                  }}
+                  onPaste={(e) => {
+                    e.preventDefault();
+                    const html = e.clipboardData.getData('text/html');
+                    const text = e.clipboardData.getData('text/plain');
+                    const insert = sanitizeHtml(
+                      html || (text || '').replace(/\n/g, '<br>')
+                    );
+                    document.execCommand('insertHTML', false, insert);
+                  }}
+                  className={styles.editor}
+                />
+
+                {images.length > 0 && (
+                  <div className={styles.imagePreview}>
+                    {images.map((img, index) => (
+                      <div key={index} className={styles.imagePreviewItem}>
+                        <img
+                          src={img}
+                          alt={`プレビュー ${index + 1}`}
+                          className={styles.previewImage}
+                        />
+                        <button
+                          onClick={() => removeImage(index)}
+                          className={styles.removeImageButton}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className={styles.actionBar}>
                 <input
                   type="file"
                   id="image-upload"
@@ -851,18 +704,25 @@ function App() {
                   onChange={handleImageUpload}
                   style={{ display: 'none' }}
                 />
-                <label htmlFor="image-upload" className={styles.imageUploadLabel}>
+                <label
+                  htmlFor="image-upload"
+                  className={styles.imageButton}
+                  aria-label="画像を追加"
+                >
                   <IconCamera />
                 </label>
-              </div>
 
-              <div>
-                <button onClick={handleSave} title="保存" className={styles.saveButton}>
+                <button
+                  onClick={handleSave}
+                  title="保存"
+                  className={styles.saveButton}
+                  type="button"
+                >
                   <IconSave />
                   保存
                 </button>
               </div>
-            </div>
+            </main>
           </div>
         )}
 

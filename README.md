@@ -1,12 +1,47 @@
-# React + Vite
+# TRENO (toreno-app)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+TRENO は、日付ごとにトレーニング記録を残すための React + Vite アプリです。
 
-Currently, two official plugins are available:
+- カレンダーから日付選択
+- 部位・メモ（リッチテキスト）・画像を保存
+- 記録はブラウザの `localStorage` に保存
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## セットアップ
 
-## Expanding the ESLint configuration
+```bash
+npm install
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## 開発サーバー起動
+
+```bash
+npm run dev
+```
+
+## ビルド
+
+```bash
+npm run build
+```
+
+## Lint
+
+```bash
+npm run lint
+```
+
+## データ保存仕様
+
+以下のキーで `localStorage` に保存します。
+
+- `treno_records_v1`: 日付ごとの記録本体
+- `treno_editBuffers_v1`: 入力途中データ（編集バッファ）
+
+互換のため、旧キー（`records`, `editBuffers`）の読み込みも実装されています。
+
+## 画像添付の注意
+
+- 1記録あたり最大 `3` 枚
+- 画像は保存前にリサイズ（最大幅 400px）
+- 添付データが一定サイズを超える場合は追加不可（`MAX_IMAGE_DATA_LENGTH`）
+- 保存形式は base64（Data URL）

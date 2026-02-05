@@ -27,6 +27,39 @@ const ALLOWED_ATTR = ['style', 'src', 'alt'];
 const sanitizeHtml = (html) =>
   DOMPurify.sanitize(html, { ALLOWED_TAGS, ALLOWED_ATTR });
 
+const insertHtmlAtCursor = (html) => {
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) {
+    return false;
+  }
+
+  const range = selection.getRangeAt(0);
+  range.deleteContents();
+
+  const temp = document.createElement('div');
+  temp.innerHTML = html;
+  const fragment = document.createDocumentFragment();
+  let node = temp.firstChild;
+  while (node) {
+    const next = node.nextSibling;
+    fragment.appendChild(node);
+    node = next;
+  }
+
+  const lastNode = fragment.lastChild;
+  range.insertNode(fragment);
+
+  if (lastNode) {
+    const nextRange = document.createRange();
+    nextRange.setStartAfter(lastNode);
+    nextRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(nextRange);
+  }
+
+  return true;
+};
+
 const formatDateKey = (date) => {
   const year = date.getFullYear();
   const month = `${date.getMonth() + 1}`.padStart(2, '0');
@@ -256,7 +289,10 @@ function App() {
           }
 
           const maxWidth = 400;
-          const ratio = Math.min(maxWidth / img.width, maxWidth / img.height);
+          const ratio = Math.min(
+            1,
+            Math.min(maxWidth / img.width, maxWidth / img.height)
+          );
 
           canvas.width = img.width * ratio;
           canvas.height = img.height * ratio;
@@ -401,7 +437,7 @@ function App() {
     if (el.innerHTML !== clean) {
       el.innerHTML = clean;
     }
-  }, [mode, editingDate, editingIndex]);
+  }, [mode, editingDate, editingIndex, noteHtml]);
 
   // カスタムカレンダーコンポーネント
   const CustomCalendar = () => {
@@ -410,7 +446,6 @@ function App() {
     const currentYear = selectedDate.getFullYear();
 
     const firstDay = new Date(currentYear, currentMonth, 1);
-    const lastDay = new Date(currentYear, currentMonth + 1, 0);
     const startDate = new Date(firstDay);
     startDate.setDate(startDate.getDate() - firstDay.getDay());
 
@@ -670,7 +705,10 @@ function App() {
                     const insert = sanitizeHtml(
                       html || (text || '').replace(/\n/g, '<br>')
                     );
-                    document.execCommand('insertHTML', false, insert);
+                    const inserted = insertHtmlAtCursor(insert);
+                    if (!inserted) {
+                      document.execCommand('insertHTML', false, insert);
+                    }
                   }}
                   className={styles.editor}
                 />

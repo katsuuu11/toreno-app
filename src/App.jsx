@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import DOMPurify from 'dompurify';
 import styles from './App.module.css';
 
@@ -71,6 +71,9 @@ const STORAGE_KEY_RECORDS = 'treno_records_v1';
 const STORAGE_KEY_EDITBUFFERS = 'treno_editBuffers_v1';
 const MAX_IMAGES_PER_RECORD = 3;
 const MAX_IMAGE_DATA_LENGTH = 600 * 1024;
+const SWIPE_OPEN_THRESHOLD = 30;
+const SWIPE_ACTION_WIDTH = 88;
+
 const COLOR_OPTIONS = [
   { id: 'red', color: '#e74c3c' },
   { id: 'green', color: '#2ecc71' },
@@ -155,22 +158,6 @@ const IconEdit = () => (
   </svg>
 );
 
-const IconTrash = () => (
-  <svg
-    width="16"
-    height="16"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-  >
-    <polyline points="3,6 5,6 21,6" />
-    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-    <line x1="10" y1="11" x2="10" y2="17" />
-    <line x1="14" y1="11" x2="14" y2="17" />
-  </svg>
-);
-
 const IconCamera = () => (
   <svg
     width="20"
@@ -229,10 +216,27 @@ function App() {
   const [mode, setMode] = useState('calendar'); // 'calendar', 'form'
   const [editingIndex, setEditingIndex] = useState(null);
   const [images, setImages] = useState([]);
+  const [openSwipeId, setOpenSwipeId] = useState(null);
+  const [draggingSwipeId, setDraggingSwipeId] = useState(null);
+  const [dragOffsetX, setDragOffsetX] = useState(0);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   const editorRef = useRef(null);
   const composingRef = useRef(false);
   const storageWarnedRef = useRef(0);
+  const swipeGestureRef = useRef({
+    id: null,
+    pointerId: null,
+    shouldCapturePointer: false,
+    startX: 0,
+    startY: 0,
+    baseOffset: 0,
+    isHorizontal: false,
+    moved: false,
+  });
+  const suppressClickRef = useRef(false);
+  const suppressResetTimerRef = useRef(null);
 
   const warnStorageError = (message) => {
     const now = Date.now();
@@ -241,9 +245,155 @@ function App() {
     alert(message);
   };
 
+  const closeSwipe = () => {
+    setOpenSwipeId(null);
+    setDraggingSwipeId(null);
+    setDragOffsetX(0);
+    suppressClickRef.current = false;
+  };
+
+  const closeDeleteDialog = () => {
+    setIsDeleteDialogOpen(false);
+    setDeleteTarget(null);
+  };
+
+  const executeDelete = (target) => {
+    if (!target) return;
+    const { ymd, index, swipeId } = target;
+
+    setRecords((prev) => {
+      const updated = (prev[ymd]?.records || []).filter((_, i) => i !== index);
+      if (updated.length === 0) {
+        const copy = { ...prev };
+        delete copy[ymd];
+        return copy;
+      }
+      return { ...prev, [ymd]: { records: updated } };
+    });
+
+    setEditBuffers((prev) => {
+      if (!prev[ymd]) return prev;
+      const copy = { ...prev };
+      delete copy[ymd];
+      return copy;
+    });
+
+    if (editingDate && formatDateKey(editingDate) === ymd && editingIndex === index) {
+      setMode('calendar');
+      setEditingDate(null);
+      setEditingIndex(null);
+      setInputParts('');
+      setNoteHtml('');
+      setSelectedColor('#e74c3c');
+      setImages([]);
+    }
+
+    if (openSwipeId === swipeId) {
+      closeSwipe();
+    }
+
+    closeDeleteDialog();
+  };
+
+  const startDeleteConfirmation = (target) => {
+    suppressClickRef.current = false;
+    setDeleteTarget(target);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleSwipePointerDown = (event, swipeId) => {
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+
+    if (openSwipeId && openSwipeId !== swipeId) {
+      setOpenSwipeId(null);
+    }
+
+    const shouldCapturePointer = event.pointerType === 'mouse';
+    if (shouldCapturePointer) {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    }
+
+    const baseOffset = openSwipeId === swipeId ? -SWIPE_ACTION_WIDTH : 0;
+    swipeGestureRef.current = {
+      id: swipeId,
+      pointerId: event.pointerId,
+      shouldCapturePointer,
+      startX: event.clientX,
+      startY: event.clientY,
+      baseOffset,
+      isHorizontal: false,
+      moved: false,
+    };
+    setDraggingSwipeId(swipeId);
+    setDragOffsetX(baseOffset);
+  };
+
+  const handleSwipePointerMove = (event) => {
+    const swipe = swipeGestureRef.current;
+    if (!swipe.id || swipe.pointerId !== event.pointerId) return;
+
+    const dx = event.clientX - swipe.startX;
+    const dy = event.clientY - swipe.startY;
+
+    if (!swipe.isHorizontal) {
+      if (Math.abs(dx) > 6 && Math.abs(dx) > Math.abs(dy)) {
+        swipe.isHorizontal = true;
+      } else if (Math.abs(dy) > 6 && Math.abs(dy) > Math.abs(dx)) {
+        return;
+      }
+    }
+
+    if (!swipe.isHorizontal) return;
+
+    swipe.moved = true;
+    let nextOffset = swipe.baseOffset + dx;
+    if (nextOffset > 0) nextOffset = 0;
+    if (nextOffset < -SWIPE_ACTION_WIDTH) nextOffset = -SWIPE_ACTION_WIDTH;
+    setDragOffsetX(nextOffset);
+  };
+
+  const handleSwipePointerEnd = (event) => {
+    const swipe = swipeGestureRef.current;
+    if (!swipe.id || swipe.pointerId !== event.pointerId) return;
+
+    if (swipe.shouldCapturePointer && event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+
+    if (swipe.moved) {
+      suppressClickRef.current = true;
+      if (suppressResetTimerRef.current) {
+        clearTimeout(suppressResetTimerRef.current);
+      }
+      suppressResetTimerRef.current = setTimeout(() => {
+        suppressClickRef.current = false;
+        suppressResetTimerRef.current = null;
+      }, 300);
+      if (dragOffsetX <= -SWIPE_OPEN_THRESHOLD) {
+        setOpenSwipeId(swipe.id);
+      } else {
+        setOpenSwipeId(null);
+      }
+    }
+
+    swipeGestureRef.current = {
+      id: null,
+      pointerId: null,
+      shouldCapturePointer: false,
+      startX: 0,
+      startY: 0,
+      baseOffset: 0,
+      isHorizontal: false,
+      moved: false,
+    };
+    setDraggingSwipeId(null);
+    setDragOffsetX(0);
+  };
+
   // 日付クリック処理
   const handleDateClick = (date) => {
     setSelectedDate(date);
+    closeSwipe();
   };
 
   // フローティングボタンから記録入力画面へ
@@ -268,6 +418,7 @@ function App() {
     setSelectedColor(record.color);
     setImages(record.images || []);
     setMode('form');
+    closeSwipe();
   };
 
   // 画像アップロード処理
@@ -332,7 +483,10 @@ function App() {
     if (!editingDate) return;
     const ymd = formatDateKey(editingDate);
     const cleanHtml = sanitizeHtml(noteHtml || '').trim() || '<p><br></p>';
-    const noteText = cleanHtml.replace(/<br\s*\/?>/gi, '').replace(/<[^>]*>/g, '').trim();
+    const noteText = cleanHtml
+      .replace(/<br\s*\/?>/gi, '')
+      .replace(/<[^>]*>/g, '')
+      .trim();
 
     if (!inputParts.trim() && !noteText && images.length === 0) {
       alert('部位・記録・画像のいずれかを入力してください。');
@@ -343,7 +497,7 @@ function App() {
       part: inputParts,
       color: selectedColor,
       note: cleanHtml,
-      images: images,
+      images,
     };
 
     setRecords((prev) => {
@@ -353,13 +507,12 @@ function App() {
           index === editingIndex ? newRecord : record
         );
         return { ...prev, [ymd]: { records: updated } };
-      } else {
-        // 新規追加の場合
-        return {
-          ...prev,
-          [ymd]: { records: [...(prev[ymd]?.records || []), newRecord] },
-        };
       }
+      // 新規追加の場合
+      return {
+        ...prev,
+        [ymd]: { records: [...(prev[ymd]?.records || []), newRecord] },
+      };
     });
 
     setEditBuffers((prev) => {
@@ -374,20 +527,6 @@ function App() {
     setSelectedColor('#e74c3c');
     setEditingIndex(null);
     setImages([]);
-  };
-
-  // 削除処理
-  const handleDelete = (ymd, index) => {
-    if (!window.confirm('この記録を削除しますか？')) return;
-    setRecords((prev) => {
-      const updated = (prev[ymd]?.records || []).filter((_, i) => i !== index);
-      if (updated.length === 0) {
-        const copy = { ...prev };
-        delete copy[ymd];
-        return copy;
-      }
-      return { ...prev, [ymd]: { records: updated } };
-    });
   };
 
   // 編集バッファ更新
@@ -417,10 +556,7 @@ function App() {
 
   useEffect(() => {
     try {
-      localStorage.setItem(
-        STORAGE_KEY_EDITBUFFERS,
-        JSON.stringify(editBuffers)
-      );
+      localStorage.setItem(STORAGE_KEY_EDITBUFFERS, JSON.stringify(editBuffers));
     } catch (error) {
       console.warn('Failed to save edit buffers to storage', error);
       warnStorageError(
@@ -439,6 +575,25 @@ function App() {
     }
   }, [mode, editingDate, editingIndex, noteHtml]);
 
+  useEffect(() => {
+    if (!isDeleteDialogOpen) return undefined;
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        closeDeleteDialog();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [isDeleteDialogOpen]);
+
+  useEffect(() => () => {
+    if (suppressResetTimerRef.current) {
+      clearTimeout(suppressResetTimerRef.current);
+    }
+  }, []);
+
   // カスタムカレンダーコンポーネント
   const CustomCalendar = () => {
     const today = new Date();
@@ -450,7 +605,7 @@ function App() {
     startDate.setDate(startDate.getDate() - firstDay.getDay());
 
     const days = [];
-    for (let i = 0; i < 42; i++) {
+    for (let i = 0; i < 42; i += 1) {
       const date = new Date(startDate);
       date.setDate(startDate.getDate() + i);
       days.push(date);
@@ -460,19 +615,20 @@ function App() {
       const newDate = new Date(selectedDate);
       newDate.setMonth(newDate.getMonth() + delta);
       setSelectedDate(newDate);
+      closeSwipe();
     };
 
     return (
       <div className={styles.calendar}>
         {/* ナビゲーション */}
         <div className={styles.calendarNav}>
-          <button onClick={() => changeMonth(-1)} className={styles.navButton}>
+          <button onClick={() => changeMonth(-1)} className={styles.navButton} type="button">
             ‹
           </button>
           <div className={styles.calendarTitle}>
             {currentYear}年 {currentMonth + 1}月
           </div>
-          <button onClick={() => changeMonth(1)} className={styles.navButton}>
+          <button onClick={() => changeMonth(1)} className={styles.navButton} type="button">
             ›
           </button>
         </div>
@@ -483,11 +639,7 @@ function App() {
             <div
               key={day}
               className={`${styles.weekday} ${
-                index === 0
-                  ? styles.sunday
-                  : index === 6
-                  ? styles.saturday
-                  : ''
+                index === 0 ? styles.sunday : index === 6 ? styles.saturday : ''
               }`}
             >
               {day}
@@ -522,6 +674,7 @@ function App() {
                 key={index}
                 onClick={() => handleDateClick(date)}
                 className={tileClasses}
+                type="button"
               >
                 {hasRecord ? (
                   <div
@@ -541,6 +694,9 @@ function App() {
     );
   };
 
+  const selectedYmd = formatDateKey(selectedDate);
+  const selectedRecords = records[selectedYmd]?.records || [];
+
   return (
     <div className={styles.appContainer}>
       <div className={styles.wrapper}>
@@ -549,12 +705,15 @@ function App() {
 
         {/* メインコンテンツ */}
         {mode === 'calendar' && (
-          <div>
+          <div
+            onClick={() => {
+              if (openSwipeId) closeSwipe();
+            }}
+          >
             <CustomCalendar />
 
             {/* 選択された日付の記録表示 */}
-            {records[formatDateKey(selectedDate)]?.records
-              ?.length > 0 && (
+            {selectedRecords.length > 0 && (
               <div className={styles.recordsSection}>
                 <h3 className={styles.recordsTitle}>
                   {selectedDate.toLocaleDateString('ja-JP', {
@@ -566,63 +725,103 @@ function App() {
                 </h3>
 
                 {/* 記録一覧 */}
-                {records[formatDateKey(selectedDate)].records.map(
-                  (record, index) => (
+                {selectedRecords.map((record, index) => {
+                  const swipeId = `${selectedYmd}-${index}`;
+                  const isDragging = draggingSwipeId === swipeId;
+                  const isOpen = openSwipeId === swipeId;
+                  const translateX = isDragging
+                    ? dragOffsetX
+                    : isOpen
+                    ? -SWIPE_ACTION_WIDTH
+                    : 0;
+
+                  return (
                     <div
-                      key={index}
-                      className={styles.recordCard}
-                      style={{ borderLeft: `8px solid ${record.color}` }}
-                      onClick={() => handleEditRecord(record, index)}
+                      key={swipeId}
+                      className={styles.swipeCardContainer}
+                      onClick={(event) => event.stopPropagation()}
                     >
-                      <div className={styles.recordHeader}>
-                        <p className={styles.recordPart}>{record.part}</p>
-                        <div className={styles.recordActions}>
-                          <button
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              handleEditRecord(record, index);
-                            }}
-                            className={styles.iconButton}
-                            title="編集"
-                          >
-                            <IconEdit />
-                          </button>
-                          <button
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              handleDelete(formatDateKey(selectedDate), index);
-                            }}
-                            className={`${styles.iconButton} ${styles.danger}`}
-                            title="削除"
-                          >
-                            <IconTrash />
-                          </button>
-                        </div>
-                      </div>
+                      <button
+                        type="button"
+                        className={styles.swipeDeleteAction}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          startDeleteConfirmation({
+                            ymd: selectedYmd,
+                            index,
+                            swipeId,
+                            dateLabel: selectedDate.toLocaleDateString('ja-JP'),
+                          });
+                        }}
+                      >
+                        削除
+                      </button>
 
                       <div
-                        dangerouslySetInnerHTML={{
-                          __html: sanitizeHtml(record.note || ''),
+                        className={styles.recordCardSurface}
+                        style={{ transform: `translateX(${translateX}px)` }}
+                        onPointerDown={(event) => handleSwipePointerDown(event, swipeId)}
+                        onPointerMove={handleSwipePointerMove}
+                        onPointerUp={handleSwipePointerEnd}
+                        onPointerCancel={handleSwipePointerEnd}
+                        onClick={() => {
+                          if (suppressClickRef.current) {
+                            suppressClickRef.current = false;
+                            return;
+                          }
+                          if (isOpen) {
+                            closeSwipe();
+                            return;
+                          }
+                          handleEditRecord(record, index);
                         }}
-                        className={styles.recordNote}
-                      />
+                      >
+                        <div
+                          className={styles.recordCard}
+                          style={{ borderLeft: `8px solid ${record.color}` }}
+                        >
+                          <div className={styles.recordHeader}>
+                            <p className={styles.recordPart}>{record.part}</p>
+                            <div className={styles.recordActions}>
+                              <button
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  handleEditRecord(record, index);
+                                }}
+                                className={styles.iconButton}
+                                title="編集"
+                                type="button"
+                              >
+                                <IconEdit />
+                              </button>
+                            </div>
+                          </div>
 
-                      {/* 画像表示 */}
-                      {record.images && record.images.length > 0 && (
-                        <div className={styles.recordImages}>
-                          {record.images.map((img, imgIndex) => (
-                            <img
-                              key={imgIndex}
-                              src={img}
-                              alt={`記録画像 ${imgIndex + 1}`}
-                              className={styles.recordImage}
-                            />
-                          ))}
+                          <div
+                            dangerouslySetInnerHTML={{
+                              __html: sanitizeHtml(record.note || ''),
+                            }}
+                            className={styles.recordNote}
+                          />
+
+                          {/* 画像表示 */}
+                          {record.images && record.images.length > 0 && (
+                            <div className={styles.recordImages}>
+                              {record.images.map((img, imgIndex) => (
+                                <img
+                                  key={imgIndex}
+                                  src={img}
+                                  alt={`記録画像 ${imgIndex + 1}`}
+                                  className={styles.recordImage}
+                                />
+                              ))}
+                            </div>
+                          )}
                         </div>
-                      )}
+                      </div>
                     </div>
-                  )
-                )}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -725,6 +924,7 @@ function App() {
                         <button
                           onClick={() => removeImage(index)}
                           className={styles.removeImageButton}
+                          type="button"
                         >
                           ×
                         </button>
@@ -766,9 +966,48 @@ function App() {
 
         {/* フローティング追加ボタン（カレンダーモードでのみ表示） */}
         {mode === 'calendar' && (
-          <button onClick={handleAddRecord} className={styles.fab}>
+          <button onClick={handleAddRecord} className={styles.fab} type="button">
             <IconPlus />
           </button>
+        )}
+
+        {isDeleteDialogOpen && deleteTarget && (
+          <div
+            className={styles.dialogOverlay}
+            role="presentation"
+            onClick={closeDeleteDialog}
+          >
+            <div
+              className={styles.dialog}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="delete-dialog-title"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <h2 id="delete-dialog-title" className={styles.dialogTitle}>
+                記録を削除しますか？
+              </h2>
+              <p className={styles.dialogBody}>
+                {deleteTarget.dateLabel} の記録を削除します。この操作は取り消せません。
+              </p>
+              <div className={styles.dialogActions}>
+                <button
+                  type="button"
+                  className={styles.dialogCancelButton}
+                  onClick={closeDeleteDialog}
+                >
+                  キャンセル
+                </button>
+                <button
+                  type="button"
+                  className={styles.dialogDeleteButton}
+                  onClick={() => executeDelete(deleteTarget)}
+                >
+                  削除する
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>

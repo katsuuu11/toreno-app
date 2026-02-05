@@ -169,9 +169,35 @@
 .recordCard {
   border: 1px solid #ccc;
   padding: 1rem;
-  margin-bottom: 1rem;
   background: #fff;
   border-radius: 8px;
+}
+
+.swipeCardContainer {
+  position: relative;
+  margin-bottom: 1rem;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.recordCardSurface {
+  position: relative;
+  z-index: 1;
+  touch-action: pan-y;
+  transition: transform 0.2s ease;
+}
+
+.swipeDeleteAction {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 88px;
+  border: none;
+  background: #e53935;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 .recordHeader {
@@ -437,6 +463,60 @@
 
 .iconButton.danger:hover {
   color: #c62828;
+}
+
+.dialogOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 1rem;
+}
+
+.dialog {
+  width: min(420px, 100%);
+  background: #fff;
+  border-radius: 12px;
+  padding: 1rem;
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.2);
+}
+
+.dialogTitle {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.dialogBody {
+  margin: 0.75rem 0 0;
+  color: #4b5563;
+}
+
+.dialogActions {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.dialogCancelButton,
+.dialogDeleteButton {
+  border: none;
+  padding: 0.55rem 0.95rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+}
+
+.dialogCancelButton {
+  background: #e5e7eb;
+  color: #1f2937;
+}
+
+.dialogDeleteButton {
+  background: #dc2626;
+  color: #fff;
 }
 
 /* フローティングボタン */

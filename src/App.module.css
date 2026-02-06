@@ -178,6 +178,8 @@
   margin-bottom: 1rem;
   border-radius: 8px;
   overflow: hidden;
+  content-visibility: auto;
+  contain-intrinsic-size: 220px;
 }
 
 .recordCardSurface {
@@ -225,6 +227,23 @@
   overflow-wrap: anywhere;
 }
 
+.recordNote :where(p, ul, ol, li, blockquote, pre) {
+  margin: 0;
+}
+
+.recordNote p + p,
+.recordNote p + ul,
+.recordNote p + ol,
+.recordNote ul + p,
+.recordNote ol + p {
+  margin-top: 0.45rem;
+}
+
+.recordNote ul,
+.recordNote ol {
+  padding-left: 1.2rem;
+}
+
 .recordImages {
   display: flex;
   flex-wrap: wrap;
@@ -251,7 +270,19 @@
 }
 
 .header {
-  padding: 0.75rem 1rem;
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(28rem, 100%);
+  z-index: 1200;
+  padding: calc(env(safe-area-inset-top) + 0.5rem) 1rem 0.5rem;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(6px);
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .backButton {
@@ -263,8 +294,50 @@
   border: none;
   cursor: pointer;
   font-size: 0.875rem;
-  padding: 0;
+  padding: 0.625rem;
+  min-height: 44px;
   transition: color 0.15s ease;
+}
+
+
+.headerActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.headerImageButton {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0.625rem;
+  color: #6b7280;
+  background: transparent;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.headerImageButton:hover {
+  color: #1f2937;
+  background-color: #f3f4f6;
+}
+.headerSaveButton {
+  min-height: 44px;
+  padding: 0.625rem 0.9rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #ffffff;
+  background-color: #1f2937;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
 }
 
 .backButton:hover {
@@ -275,7 +348,7 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 0 1.5rem 1.5rem;
+  padding: calc(env(safe-area-inset-top) + 5.25rem) 1.5rem 1.5rem;
   gap: 1.5rem;
 }
 
@@ -399,49 +472,7 @@
   justify-content: center;
 }
 
-.actionBar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-top: 0.5rem;
-}
 
-.imageButton {
-  padding: 0.625rem;
-  color: #6b7280;
-  background: transparent;
-  border: none;
-  border-radius: 0.5rem;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: color 0.15s ease, background-color 0.15s ease;
-}
-
-.imageButton:hover {
-  color: #1f2937;
-  background-color: #f3f4f6;
-}
-
-.saveButton {
-  padding: 0.625rem 1.5rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #ffffff;
-  background-color: #1f2937;
-  border: none;
-  border-radius: 0.5rem;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  transition: background-color 0.15s ease;
-}
-
-.saveButton:hover {
-  background-color: #374151;
-}
 
 /* ボタン共通 */
 .iconButton {

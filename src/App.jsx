@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import DOMPurify from 'dompurify';
 import styles from './App.module.css';
 
@@ -26,6 +26,13 @@ const ALLOWED_ATTR = ['style', 'src', 'alt'];
 
 const sanitizeHtml = (html) =>
   DOMPurify.sanitize(html, { ALLOWED_TAGS, ALLOWED_ATTR });
+
+const normalizeNoteHtml = (html) => {
+  if (!html) return '';
+  return html
+    .replace(/(<p>(?:\s|&nbsp;|<br\s*\/?>)*<\/p>)+$/gi, '')
+    .trim();
+};
 
 const insertHtmlAtCursor = (html) => {
   const selection = window.getSelection();
@@ -73,6 +80,8 @@ const MAX_IMAGES_PER_RECORD = 3;
 const MAX_IMAGE_DATA_LENGTH = 600 * 1024;
 const SWIPE_OPEN_THRESHOLD = 30;
 const SWIPE_ACTION_WIDTH = 88;
+const SWIPE_TAP_SUPPRESS_THRESHOLD = 8;
+const SWIPE_TAP_SUPPRESS_MS = 280;
 
 const COLOR_OPTIONS = [
   { id: 'red', color: '#e74c3c' },
@@ -172,6 +181,102 @@ const IconCamera = () => (
   </svg>
 );
 
+const RecordCardItem = memo(function RecordCardItem({
+  record,
+  index,
+  swipeId,
+  selectedYmd,
+  selectedDateLabel,
+  isOpen,
+  translateX,
+  handleSwipePointerDown,
+  handleSwipePointerMove,
+  handleSwipePointerEnd,
+  startDeleteConfirmation,
+  closeSwipe,
+  handleEditRecord,
+  suppressClickRef,
+}) {
+  const sanitizedNote = useMemo(
+    () => sanitizeHtml(record.note || ''),
+    [record.note]
+  );
+
+  return (
+    <div className={styles.swipeCardContainer} onClick={(event) => event.stopPropagation()}>
+      <button
+        type="button"
+        className={styles.swipeDeleteAction}
+        onClick={(event) => {
+          event.stopPropagation();
+          startDeleteConfirmation({
+            ymd: selectedYmd,
+            index,
+            swipeId,
+            dateLabel: selectedDateLabel,
+          });
+        }}
+      >
+        削除
+      </button>
+
+      <div
+        className={styles.recordCardSurface}
+        style={{ transform: `translateX(${translateX}px)` }}
+        onPointerDown={(event) => handleSwipePointerDown(event, swipeId)}
+        onPointerMove={handleSwipePointerMove}
+        onPointerUp={handleSwipePointerEnd}
+        onPointerCancel={handleSwipePointerEnd}
+        onClick={() => {
+          if (suppressClickRef.current) {
+            suppressClickRef.current = false;
+            return;
+          }
+          if (isOpen) {
+            closeSwipe();
+            return;
+          }
+          handleEditRecord(record, index);
+        }}
+      >
+        <div className={styles.recordCard} style={{ borderLeft: `8px solid ${record.color}` }}>
+          <div className={styles.recordHeader}>
+            <p className={styles.recordPart}>{record.part}</p>
+            <div className={styles.recordActions}>
+              <button
+                onClick={(event) => {
+                  event.stopPropagation();
+                  handleEditRecord(record, index);
+                }}
+                className={styles.iconButton}
+                title="編集"
+                type="button"
+              >
+                <IconEdit />
+              </button>
+            </div>
+          </div>
+
+          <div dangerouslySetInnerHTML={{ __html: sanitizedNote }} className={styles.recordNote} />
+
+          {record.images && record.images.length > 0 && (
+            <div className={styles.recordImages}>
+              {record.images.map((img, imgIndex) => (
+                <img
+                  key={imgIndex}
+                  src={img}
+                  alt={`記録画像 ${imgIndex + 1}`}
+                  className={styles.recordImage}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+});
+
 function App() {
   const [noteHtml, setNoteHtml] = useState('');
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -234,6 +339,7 @@ function App() {
     baseOffset: 0,
     isHorizontal: false,
     moved: false,
+    latestDx: 0,
   });
   const suppressClickRef = useRef(false);
   const suppressResetTimerRef = useRef(null);
@@ -323,6 +429,7 @@ function App() {
       baseOffset,
       isHorizontal: false,
       moved: false,
+      latestDx: 0,
     };
     setDraggingSwipeId(swipeId);
     setDragOffsetX(baseOffset);
@@ -345,7 +452,10 @@ function App() {
 
     if (!swipe.isHorizontal) return;
 
-    swipe.moved = true;
+    swipe.latestDx = dx;
+    if (Math.abs(dx) > SWIPE_TAP_SUPPRESS_THRESHOLD) {
+      swipe.moved = true;
+    }
     let nextOffset = swipe.baseOffset + dx;
     if (nextOffset > 0) nextOffset = 0;
     if (nextOffset < -SWIPE_ACTION_WIDTH) nextOffset = -SWIPE_ACTION_WIDTH;
@@ -368,7 +478,7 @@ function App() {
       suppressResetTimerRef.current = setTimeout(() => {
         suppressClickRef.current = false;
         suppressResetTimerRef.current = null;
-      }, 300);
+      }, SWIPE_TAP_SUPPRESS_MS);
       if (dragOffsetX <= -SWIPE_OPEN_THRESHOLD) {
         setOpenSwipeId(swipe.id);
       } else {
@@ -385,6 +495,7 @@ function App() {
       baseOffset: 0,
       isHorizontal: false,
       moved: false,
+      latestDx: 0,
     };
     setDraggingSwipeId(null);
     setDragOffsetX(0);
@@ -482,7 +593,8 @@ function App() {
   const handleSave = () => {
     if (!editingDate) return;
     const ymd = formatDateKey(editingDate);
-    const cleanHtml = sanitizeHtml(noteHtml || '').trim() || '<p><br></p>';
+    const cleanHtml =
+      normalizeNoteHtml(sanitizeHtml(noteHtml || '').trim()) || '<p><br></p>';
     const noteText = cleanHtml
       .replace(/<br\s*\/?>/gi, '')
       .replace(/<[^>]*>/g, '')
@@ -701,7 +813,7 @@ function App() {
     <div className={styles.appContainer}>
       <div className={styles.wrapper}>
         {/* ヘッダー */}
-        <h1 className={styles.appHeader}>TRENO</h1>
+        {mode === 'calendar' && <h1 className={styles.appHeader}>TRENO</h1>}
 
         {/* メインコンテンツ */}
         {mode === 'calendar' && (
@@ -736,90 +848,23 @@ function App() {
                     : 0;
 
                   return (
-                    <div
+                    <RecordCardItem
                       key={swipeId}
-                      className={styles.swipeCardContainer}
-                      onClick={(event) => event.stopPropagation()}
-                    >
-                      <button
-                        type="button"
-                        className={styles.swipeDeleteAction}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          startDeleteConfirmation({
-                            ymd: selectedYmd,
-                            index,
-                            swipeId,
-                            dateLabel: selectedDate.toLocaleDateString('ja-JP'),
-                          });
-                        }}
-                      >
-                        削除
-                      </button>
-
-                      <div
-                        className={styles.recordCardSurface}
-                        style={{ transform: `translateX(${translateX}px)` }}
-                        onPointerDown={(event) => handleSwipePointerDown(event, swipeId)}
-                        onPointerMove={handleSwipePointerMove}
-                        onPointerUp={handleSwipePointerEnd}
-                        onPointerCancel={handleSwipePointerEnd}
-                        onClick={() => {
-                          if (suppressClickRef.current) {
-                            suppressClickRef.current = false;
-                            return;
-                          }
-                          if (isOpen) {
-                            closeSwipe();
-                            return;
-                          }
-                          handleEditRecord(record, index);
-                        }}
-                      >
-                        <div
-                          className={styles.recordCard}
-                          style={{ borderLeft: `8px solid ${record.color}` }}
-                        >
-                          <div className={styles.recordHeader}>
-                            <p className={styles.recordPart}>{record.part}</p>
-                            <div className={styles.recordActions}>
-                              <button
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  handleEditRecord(record, index);
-                                }}
-                                className={styles.iconButton}
-                                title="編集"
-                                type="button"
-                              >
-                                <IconEdit />
-                              </button>
-                            </div>
-                          </div>
-
-                          <div
-                            dangerouslySetInnerHTML={{
-                              __html: sanitizeHtml(record.note || ''),
-                            }}
-                            className={styles.recordNote}
-                          />
-
-                          {/* 画像表示 */}
-                          {record.images && record.images.length > 0 && (
-                            <div className={styles.recordImages}>
-                              {record.images.map((img, imgIndex) => (
-                                <img
-                                  key={imgIndex}
-                                  src={img}
-                                  alt={`記録画像 ${imgIndex + 1}`}
-                                  className={styles.recordImage}
-                                />
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
+                      record={record}
+                      index={index}
+                      swipeId={swipeId}
+                      selectedYmd={selectedYmd}
+                      selectedDateLabel={selectedDate.toLocaleDateString('ja-JP')}
+                      isOpen={isOpen}
+                      translateX={translateX}
+                      handleSwipePointerDown={handleSwipePointerDown}
+                      handleSwipePointerMove={handleSwipePointerMove}
+                      handleSwipePointerEnd={handleSwipePointerEnd}
+                      startDeleteConfirmation={startDeleteConfirmation}
+                      closeSwipe={closeSwipe}
+                      handleEditRecord={handleEditRecord}
+                      suppressClickRef={suppressClickRef}
+                    />
                   );
                 })}
               </div>
@@ -839,6 +884,33 @@ function App() {
                 <IconArrowLeft />
                 <span>戻る</span>
               </button>
+
+              <div className={styles.headerActions}>
+                <input
+                  type="file"
+                  id="image-upload"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  style={{ display: 'none' }}
+                />
+                <label
+                  htmlFor="image-upload"
+                  className={styles.headerImageButton}
+                  aria-label="画像を追加"
+                >
+                  <IconCamera />
+                </label>
+
+                <button
+                  onClick={handleSave}
+                  title="完了"
+                  className={styles.headerSaveButton}
+                  type="button"
+                >
+                  <IconSave />
+                  完了
+                </button>
+              </div>
             </header>
 
             <main className={styles.main}>
@@ -934,32 +1006,6 @@ function App() {
                 )}
               </div>
 
-              <div className={styles.actionBar}>
-                <input
-                  type="file"
-                  id="image-upload"
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  style={{ display: 'none' }}
-                />
-                <label
-                  htmlFor="image-upload"
-                  className={styles.imageButton}
-                  aria-label="画像を追加"
-                >
-                  <IconCamera />
-                </label>
-
-                <button
-                  onClick={handleSave}
-                  title="保存"
-                  className={styles.saveButton}
-                  type="button"
-                >
-                  <IconSave />
-                  保存
-                </button>
-              </div>
             </main>
           </div>
         )}

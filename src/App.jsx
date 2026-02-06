@@ -27,13 +27,6 @@ const ALLOWED_ATTR = ['style', 'src', 'alt'];
 const sanitizeHtml = (html) =>
   DOMPurify.sanitize(html, { ALLOWED_TAGS, ALLOWED_ATTR });
 
-const normalizeNoteHtml = (html) => {
-  if (!html) return '';
-  return html
-    .replace(/(<p>(?:\s|&nbsp;|<br\s*\/?>)*<\/p>)+$/gi, '')
-    .trim();
-};
-
 const insertHtmlAtCursor = (html) => {
   const selection = window.getSelection();
   if (!selection || selection.rangeCount === 0) {
@@ -192,10 +185,9 @@ const RecordCardItem = memo(function RecordCardItem({
   handleSwipePointerDown,
   handleSwipePointerMove,
   handleSwipePointerEnd,
+  handleCardActivate,
   startDeleteConfirmation,
-  closeSwipe,
   handleEditRecord,
-  suppressClickRef,
 }) {
   const sanitizedNote = useMemo(
     () => sanitizeHtml(record.note || ''),
@@ -225,19 +217,31 @@ const RecordCardItem = memo(function RecordCardItem({
         style={{ transform: `translateX(${translateX}px)` }}
         onPointerDown={(event) => handleSwipePointerDown(event, swipeId)}
         onPointerMove={handleSwipePointerMove}
-        onPointerUp={handleSwipePointerEnd}
+        onPointerUp={(event) =>
+          handleCardActivate(event, {
+            swipeId,
+            isOpen,
+            record,
+            index,
+          })
+        }
+        onTouchEnd={(event) =>
+          handleCardActivate(event, {
+            swipeId,
+            isOpen,
+            record,
+            index,
+          })
+        }
+        onMouseUp={(event) =>
+          handleCardActivate(event, {
+            swipeId,
+            isOpen,
+            record,
+            index,
+          })
+        }
         onPointerCancel={handleSwipePointerEnd}
-        onClick={() => {
-          if (suppressClickRef.current) {
-            suppressClickRef.current = false;
-            return;
-          }
-          if (isOpen) {
-            closeSwipe();
-            return;
-          }
-          handleEditRecord(record, index);
-        }}
       >
         <div className={styles.recordCard} style={{ borderLeft: `8px solid ${record.color}` }}>
           <div className={styles.recordHeader}>
@@ -341,8 +345,17 @@ function App() {
     moved: false,
     latestDx: 0,
   });
-  const suppressClickRef = useRef(false);
-  const suppressResetTimerRef = useRef(null);
+  const tapSuppressRef = useRef({
+    active: false,
+    consumed: false,
+    timerId: null,
+  });
+  const lastCardTapRef = useRef({
+    swipeId: null,
+    timeStamp: 0,
+    x: null,
+    y: null,
+  });
 
   const warnStorageError = (message) => {
     const now = Date.now();
@@ -355,7 +368,8 @@ function App() {
     setOpenSwipeId(null);
     setDraggingSwipeId(null);
     setDragOffsetX(0);
-    suppressClickRef.current = false;
+    tapSuppressRef.current.active = false;
+    tapSuppressRef.current.consumed = false;
   };
 
   const closeDeleteDialog = () => {
@@ -402,9 +416,59 @@ function App() {
   };
 
   const startDeleteConfirmation = (target) => {
-    suppressClickRef.current = false;
+    tapSuppressRef.current.active = false;
+    tapSuppressRef.current.consumed = false;
     setDeleteTarget(target);
     setIsDeleteDialogOpen(true);
+  };
+
+  const scheduleTapSuppressReset = () => {
+    if (tapSuppressRef.current.timerId) {
+      clearTimeout(tapSuppressRef.current.timerId);
+    }
+    tapSuppressRef.current.timerId = setTimeout(() => {
+      tapSuppressRef.current.active = false;
+      tapSuppressRef.current.consumed = false;
+      tapSuppressRef.current.timerId = null;
+    }, SWIPE_TAP_SUPPRESS_MS);
+  };
+
+  const shouldConsumeSuppressedTap = () => {
+    if (!tapSuppressRef.current.active || tapSuppressRef.current.consumed) {
+      return false;
+    }
+    tapSuppressRef.current.consumed = true;
+    return true;
+  };
+
+  const extractEventPoint = (event) => {
+    if (event.changedTouches && event.changedTouches.length > 0) {
+      const touch = event.changedTouches[0];
+      return { x: touch.clientX, y: touch.clientY };
+    }
+    return {
+      x: typeof event.clientX === 'number' ? event.clientX : null,
+      y: typeof event.clientY === 'number' ? event.clientY : null,
+    };
+  };
+
+  const isDuplicateCardTap = (event, swipeId) => {
+    const { x, y } = extractEventPoint(event);
+    const timeStamp = typeof event.timeStamp === 'number' ? event.timeStamp : Date.now();
+    const lastTap = lastCardTapRef.current;
+    const isSameSwipe = lastTap.swipeId === swipeId;
+    const isNearTime = Math.abs(timeStamp - lastTap.timeStamp) <= 80;
+    const isNearPoint =
+      x !== null &&
+      y !== null &&
+      lastTap.x !== null &&
+      lastTap.y !== null &&
+      Math.abs(x - lastTap.x) <= 2 &&
+      Math.abs(y - lastTap.y) <= 2;
+
+    lastCardTapRef.current = { swipeId, timeStamp, x, y };
+
+    return isSameSwipe && isNearTime && isNearPoint;
   };
 
   const handleSwipePointerDown = (event, swipeId) => {
@@ -471,14 +535,9 @@ function App() {
     }
 
     if (swipe.moved) {
-      suppressClickRef.current = true;
-      if (suppressResetTimerRef.current) {
-        clearTimeout(suppressResetTimerRef.current);
-      }
-      suppressResetTimerRef.current = setTimeout(() => {
-        suppressClickRef.current = false;
-        suppressResetTimerRef.current = null;
-      }, SWIPE_TAP_SUPPRESS_MS);
+      tapSuppressRef.current.active = true;
+      tapSuppressRef.current.consumed = false;
+      scheduleTapSuppressReset();
       if (dragOffsetX <= -SWIPE_OPEN_THRESHOLD) {
         setOpenSwipeId(swipe.id);
       } else {
@@ -499,6 +558,27 @@ function App() {
     };
     setDraggingSwipeId(null);
     setDragOffsetX(0);
+  };
+
+  const handleCardActivate = (event, { swipeId, isOpen, record, index }) => {
+    const swipe = swipeGestureRef.current;
+    const wasSwipeMove =
+      swipe.id === swipeId &&
+      swipe.pointerId === event.pointerId &&
+      swipe.moved;
+
+    handleSwipePointerEnd(event);
+
+    if (wasSwipeMove) return;
+    if (isDuplicateCardTap(event, swipeId)) return;
+    if (shouldConsumeSuppressedTap()) return;
+
+    if (isOpen) {
+      closeSwipe();
+      return;
+    }
+
+    handleEditRecord(record, index);
   };
 
   // 日付クリック処理
@@ -594,7 +674,7 @@ function App() {
     if (!editingDate) return;
     const ymd = formatDateKey(editingDate);
     const cleanHtml =
-      normalizeNoteHtml(sanitizeHtml(noteHtml || '').trim()) || '<p><br></p>';
+      sanitizeHtml(noteHtml || '').trim() || '<p><br></p>';
     const noteText = cleanHtml
       .replace(/<br\s*\/?>/gi, '')
       .replace(/<[^>]*>/g, '')
@@ -701,8 +781,9 @@ function App() {
   }, [isDeleteDialogOpen]);
 
   useEffect(() => () => {
-    if (suppressResetTimerRef.current) {
-      clearTimeout(suppressResetTimerRef.current);
+    if (tapSuppressRef.current.timerId) {
+      clearTimeout(tapSuppressRef.current.timerId);
+      tapSuppressRef.current.timerId = null;
     }
   }, []);
 
@@ -860,10 +941,9 @@ function App() {
                       handleSwipePointerDown={handleSwipePointerDown}
                       handleSwipePointerMove={handleSwipePointerMove}
                       handleSwipePointerEnd={handleSwipePointerEnd}
+                      handleCardActivate={handleCardActivate}
                       startDeleteConfirmation={startDeleteConfirmation}
-                      closeSwipe={closeSwipe}
                       handleEditRecord={handleEditRecord}
-                      suppressClickRef={suppressClickRef}
                     />
                   );
                 })}

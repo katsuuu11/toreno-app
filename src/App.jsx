@@ -76,6 +76,8 @@ const SWIPE_ACTION_WIDTH = 88;
 const SWIPE_TAP_SUPPRESS_THRESHOLD = 8;
 const SWIPE_TAP_SUPPRESS_MS = 280;
 const TAP_MOVE_THRESHOLD_PX = 8;
+const DATE_DOUBLE_TAP_THRESHOLD_MS = 300;
+const DATE_TAP_MOVE_THRESHOLD_PX = 10;
 
 const COLOR_OPTIONS = [
   { id: 'red', color: '#e74c3c' },
@@ -338,6 +340,17 @@ function App() {
     consumed: false,
     timerId: null,
   });
+  const lastDateTapRef = useRef({
+    ymd: null,
+    timeStamp: 0,
+  });
+  const datePointerRef = useRef({
+    pointerId: null,
+    startX: 0,
+    startY: 0,
+    moved: false,
+  });
+  const suppressDateClickRef = useRef(false);
   const lastCardTapRef = useRef({
     swipeId: null,
     timeStamp: 0,
@@ -587,17 +600,88 @@ function App() {
     closeSwipe();
   };
 
-  // フローティングボタンから記録入力画面へ
-  const handleAddRecord = () => {
-    setEditingDate(selectedDate);
+  const goToNewRecord = (date) => {
+    setSelectedDate(date);
+    setEditingDate(date);
     setEditingIndex(null);
-    const ymd = formatDateKey(selectedDate);
+    const ymd = formatDateKey(date);
     const buffer = editBuffers[ymd] || {};
     setInputParts(buffer.part || '');
     setNoteHtml(buffer.note || '');
     setSelectedColor(buffer.color || '#e74c3c');
     setImages([]);
     setMode('form');
+  };
+
+  // フローティングボタンから記録入力画面へ
+  const handleAddRecord = () => {
+    goToNewRecord(selectedDate);
+  };
+
+  const handleDatePointerDown = (event) => {
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    datePointerRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      moved: false,
+    };
+  };
+
+  const handleDatePointerMove = (event) => {
+    const pointer = datePointerRef.current;
+    if (pointer.pointerId !== event.pointerId) return;
+    const dx = event.clientX - pointer.startX;
+    const dy = event.clientY - pointer.startY;
+    if (!pointer.moved && Math.hypot(dx, dy) > DATE_TAP_MOVE_THRESHOLD_PX) {
+      pointer.moved = true;
+    }
+  };
+
+  const handleDatePointerEnd = (event, date) => {
+    const pointer = datePointerRef.current;
+    if (pointer.pointerId !== event.pointerId) return;
+
+    const dx = event.clientX - pointer.startX;
+    const dy = event.clientY - pointer.startY;
+    const exceededMove =
+      pointer.moved || Math.hypot(dx, dy) > DATE_TAP_MOVE_THRESHOLD_PX;
+
+    datePointerRef.current = {
+      pointerId: null,
+      startX: 0,
+      startY: 0,
+      moved: false,
+    };
+
+    if (exceededMove) return;
+
+    const ymd = formatDateKey(date);
+    const now = Date.now();
+    const lastTap = lastDateTapRef.current;
+    const isDoubleTap =
+      lastTap.ymd === ymd && now - lastTap.timeStamp <= DATE_DOUBLE_TAP_THRESHOLD_MS;
+
+    lastDateTapRef.current = { ymd, timeStamp: now };
+    suppressDateClickRef.current = true;
+
+    if (isDoubleTap) {
+      goToNewRecord(date);
+      return;
+    }
+
+    handleDateClick(date);
+  };
+
+  const handleDatePointerCancel = (event) => {
+    const pointer = datePointerRef.current;
+    if (pointer.pointerId !== event.pointerId) return;
+    datePointerRef.current = {
+      pointerId: null,
+      startX: 0,
+      startY: 0,
+      moved: false,
+    };
   };
 
   // 編集開始
@@ -865,7 +949,17 @@ function App() {
             return (
               <button
                 key={index}
-                onClick={() => handleDateClick(date)}
+                onPointerDown={handleDatePointerDown}
+                onPointerMove={handleDatePointerMove}
+                onPointerUp={(event) => handleDatePointerEnd(event, date)}
+                onPointerCancel={handleDatePointerCancel}
+                onClick={() => {
+                  if (suppressDateClickRef.current) {
+                    suppressDateClickRef.current = false;
+                    return;
+                  }
+                  handleDateClick(date);
+                }}
                 className={tileClasses}
                 type="button"
               >

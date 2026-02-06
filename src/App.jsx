@@ -75,6 +75,7 @@ const SWIPE_OPEN_THRESHOLD = 30;
 const SWIPE_ACTION_WIDTH = 88;
 const SWIPE_TAP_SUPPRESS_THRESHOLD = 8;
 const SWIPE_TAP_SUPPRESS_MS = 280;
+const TAP_MOVE_THRESHOLD_PX = 8;
 
 const COLOR_OPTIONS = [
   { id: 'red', color: '#e74c3c' },
@@ -225,22 +226,6 @@ const RecordCardItem = memo(function RecordCardItem({
             index,
           })
         }
-        onTouchEnd={(event) =>
-          handleCardActivate(event, {
-            swipeId,
-            isOpen,
-            record,
-            index,
-          })
-        }
-        onMouseUp={(event) =>
-          handleCardActivate(event, {
-            swipeId,
-            isOpen,
-            record,
-            index,
-          })
-        }
         onPointerCancel={handleSwipePointerEnd}
       >
         <div className={styles.recordCard} style={{ borderLeft: `8px solid ${record.color}` }}>
@@ -345,6 +330,7 @@ function App() {
     baseOffset: 0,
     isHorizontal: false,
     moved: false,
+    exceededTapMove: false,
     latestDx: 0,
   });
   const tapSuppressRef = useRef({
@@ -495,6 +481,7 @@ function App() {
       baseOffset,
       isHorizontal: false,
       moved: false,
+      exceededTapMove: false,
       latestDx: 0,
     };
     setDraggingSwipeId(swipeId);
@@ -519,6 +506,9 @@ function App() {
     if (!swipe.isHorizontal) return;
 
     swipe.latestDx = dx;
+    if (!swipe.exceededTapMove && Math.hypot(dx, dy) > TAP_MOVE_THRESHOLD_PX) {
+      swipe.exceededTapMove = true;
+    }
     if (Math.abs(dx) > SWIPE_TAP_SUPPRESS_THRESHOLD) {
       swipe.moved = true;
     }
@@ -556,6 +546,7 @@ function App() {
       baseOffset: 0,
       isHorizontal: false,
       moved: false,
+      exceededTapMove: false,
       latestDx: 0,
     };
     setDraggingSwipeId(null);
@@ -564,6 +555,12 @@ function App() {
 
   const handleCardActivate = (event, { swipeId, isOpen, record, index }) => {
     const swipe = swipeGestureRef.current;
+    const pointerDx = event.clientX - swipe.startX;
+    const pointerDy = event.clientY - swipe.startY;
+    const exceededTapMove =
+      swipe.id === swipeId &&
+      swipe.pointerId === event.pointerId &&
+      (swipe.exceededTapMove || Math.hypot(pointerDx, pointerDy) > TAP_MOVE_THRESHOLD_PX);
     const wasSwipeMove =
       swipe.id === swipeId &&
       swipe.pointerId === event.pointerId &&
@@ -572,6 +569,7 @@ function App() {
     handleSwipePointerEnd(event);
 
     if (wasSwipeMove) return;
+    if (exceededTapMove) return;
     if (isDuplicateCardTap(event, swipeId)) return;
     if (shouldConsumeSuppressedTap()) return;
 

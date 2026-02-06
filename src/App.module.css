@@ -227,21 +227,29 @@
   overflow-wrap: anywhere;
 }
 
-.recordNote :where(p, ul, ol, li, blockquote, pre) {
+.recordNote p {
   margin: 0;
-}
-
-.recordNote p + p,
-.recordNote p + ul,
-.recordNote p + ol,
-.recordNote ul + p,
-.recordNote ol + p {
-  margin-top: 0.45rem;
 }
 
 .recordNote ul,
 .recordNote ol {
+  margin: 0;
   padding-left: 1.2rem;
+}
+
+.recordNote li {
+  margin: 0;
+}
+
+.recordNote div,
+.recordNote blockquote,
+.recordNote pre {
+  margin: 0;
+  line-height: inherit;
+}
+
+.recordNote br {
+  line-height: 1;
 }
 
 .recordImages {

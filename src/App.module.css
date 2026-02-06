@@ -7,6 +7,8 @@
   color: #333;
   line-height: 1.6;
   min-height: 100vh;
+  min-height: 100svh;
+  overflow-anchor: none;
 }
 
 .wrapper {
@@ -158,6 +160,7 @@
   padding: 1.5rem;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   margin: 0 1rem 2rem;
+  overflow-anchor: none;
 }
 
 .recordsTitle {
@@ -258,8 +261,8 @@
 }
 
 .recordImage {
-  max-width: 100px;
-  max-height: 100px;
+  width: 100px;
+  height: 100px;
   object-fit: cover;
   border-radius: 4px;
   border: 1px solid #ddd;
@@ -268,6 +271,7 @@
 /* フォーム */
 .container {
   min-height: 100vh;
+  min-height: 100svh;
   background-color: #ffffff;
   display: flex;
   flex-direction: column;

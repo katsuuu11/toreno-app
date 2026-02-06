@@ -178,8 +178,6 @@
   margin-bottom: 1rem;
   border-radius: 8px;
   overflow: hidden;
-  content-visibility: auto;
-  contain-intrinsic-size: 220px;
 }
 
 .recordCardSurface {

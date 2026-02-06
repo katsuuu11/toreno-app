@@ -270,6 +270,8 @@ const RecordCardItem = memo(function RecordCardItem({
                   key={imgIndex}
                   src={img}
                   alt={`記録画像 ${imgIndex + 1}`}
+                  width="100"
+                  height="100"
                   className={styles.recordImage}
                 />
               ))}

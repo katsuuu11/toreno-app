@@ -239,6 +239,18 @@
   margin-bottom: 0.5rem;
 }
 
+.recordMeta {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 0.35rem;
+}
+
+.recordTime {
+  font-size: 0.78rem;
+  color: #8b8b8b;
+  letter-spacing: 0.04em;
+}
+
 .recordPart {
   margin: 0;
   font-weight: bold;
@@ -324,6 +336,14 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+
+.headerTime {
+  flex: 1;
+  text-align: center;
+  font-size: 0.8rem;
+  color: #8b8b8b;
+  letter-spacing: 0.08em;
 }
 
 .backButton {

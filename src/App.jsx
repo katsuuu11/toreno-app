@@ -67,6 +67,13 @@ const formatDateKey = (date) => {
   return `${year}-${month}-${day}`;
 };
 
+const getNowHHmm = () =>
+  new Date().toLocaleTimeString('ja-JP', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+
 const STORAGE_KEY_RECORDS = 'treno_records_v1';
 const STORAGE_KEY_EDITBUFFERS = 'treno_editBuffers_v1';
 const STORAGE_KEY_SUGGESTIONS = 'treno_suggestions_v1';
@@ -453,6 +460,11 @@ const RecordCardItem = memo(function RecordCardItem({
         onPointerCancel={handleSwipePointerEnd}
       >
         <div className={styles.recordCard} style={{ borderLeft: `8px solid ${record.color}` }}>
+          {record.startTime && (
+            <div className={styles.recordMeta}>
+              <span className={styles.recordTime}>{record.startTime}</span>
+            </div>
+          )}
           <div className={styles.recordHeader}>
             <p className={styles.recordPart}>{record.part}</p>
             <div className={styles.recordActions}>
@@ -636,6 +648,7 @@ function App() {
   const [editingDate, setEditingDate] = useState(null);
   const [inputParts, setInputParts] = useState('');
   const [selectedColor, setSelectedColor] = useState('#e74c3c');
+  const [startTime, setStartTime] = useState('');
   const [records, setRecords] = useState(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY_RECORDS);
@@ -788,6 +801,7 @@ function App() {
       setInputParts('');
       setNoteHtml('');
       setSelectedColor('#e74c3c');
+      setStartTime('');
       setImages([]);
     }
 
@@ -991,6 +1005,7 @@ function App() {
     setInputParts(buffer.part || '');
     setNoteHtml(buffer.note || '');
     setSelectedColor(buffer.color || '#e74c3c');
+    setStartTime(buffer.startTime || getNowHHmm());
     setImages([]);
     setMode('form');
   };
@@ -1073,6 +1088,7 @@ function App() {
     setInputParts(record.part);
     setNoteHtml(record.note);
     setSelectedColor(record.color);
+    setStartTime(record.startTime || '');
     setImages(record.images || []);
     setMode('form');
     closeSwipe();
@@ -1139,6 +1155,11 @@ function App() {
   const handleSave = () => {
     if (!editingDate) return;
     const ymd = formatDateKey(editingDate);
+    const bufferStartTime = editBuffers[ymd]?.startTime;
+    const existingStartTime =
+      editingIndex !== null ? records[ymd]?.records?.[editingIndex]?.startTime : null;
+    const resolvedStartTime =
+      bufferStartTime || existingStartTime || startTime || getNowHHmm();
     const cleanHtml =
       sanitizeHtml(noteHtml || '').trim() || '<p><br></p>';
     const noteText = cleanHtml
@@ -1156,6 +1177,7 @@ function App() {
       color: selectedColor,
       note: cleanHtml,
       images,
+      startTime: resolvedStartTime,
     };
 
     setRecords((prev) => {
@@ -1186,6 +1208,7 @@ function App() {
     setNoteHtml('');
     setSelectedColor('#e74c3c');
     setEditingIndex(null);
+    setStartTime('');
     setImages([]);
   };
 
@@ -1199,9 +1222,10 @@ function App() {
         part: inputParts,
         note: noteHtml,
         color: selectedColor,
+        startTime,
       },
     }));
-  }, [inputParts, noteHtml, selectedColor, editingDate]);
+  }, [inputParts, noteHtml, selectedColor, startTime, editingDate]);
 
   useEffect(() => {
     try {
@@ -1443,6 +1467,8 @@ function App() {
                 <IconArrowLeft />
                 <span>戻る</span>
               </button>
+
+              <div className={styles.headerTime}>{startTime}</div>
 
               <div className={styles.headerActions}>
                 <input

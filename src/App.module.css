@@ -1,5 +1,32 @@
 /* App.module.css */
 
+/* Minimal global reset for user agent margins/padding */
+:global(*),
+:global(*::before),
+:global(*::after) {
+  box-sizing: border-box;
+}
+
+:global(body) {
+  margin: 0;
+}
+
+:global(:where(h1, h2, h3, h4, h5, h6, p, figure, blockquote, dl, dd)) {
+  margin: 0;
+  margin-block: 0;
+}
+
+:global(:where(ul, ol)) {
+  margin: 0;
+  margin-block: 0;
+  padding: 0;
+}
+
+:global(:where(li)) {
+  margin: 0;
+  margin-block: 0;
+}
+
 /* レイアウト */
 .appContainer {
   font-family: 'Noto Sans JP', sans-serif;

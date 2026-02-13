@@ -406,6 +406,118 @@ const IconCamera = () => (
   </svg>
 );
 
+const ImageLightboxModal = memo(function ImageLightboxModal({
+  isOpen,
+  images,
+  initialIndex,
+  onClose,
+}) {
+  const [currentIndex, setCurrentIndex] = useState(initialIndex);
+  const modalRef = useRef(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setCurrentIndex(initialIndex);
+  }, [initialIndex, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    modalRef.current?.focus();
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onClose();
+      }
+      if (event.key === 'ArrowRight' && images.length > 1) {
+        event.preventDefault();
+        setCurrentIndex((prev) => (prev + 1) % images.length);
+      }
+      if (event.key === 'ArrowLeft' && images.length > 1) {
+        event.preventDefault();
+        setCurrentIndex((prev) => (prev - 1 + images.length) % images.length);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [images.length, isOpen, onClose]);
+
+  if (!isOpen || images.length === 0) return null;
+
+  const canNavigate = images.length > 1;
+
+  return (
+    <div
+      className={styles.lightboxOverlay}
+      role="dialog"
+      aria-modal="true"
+      aria-label="画像の拡大表示"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) {
+          onClose();
+        }
+      }}
+      ref={modalRef}
+      tabIndex={-1}
+    >
+      <button
+        type="button"
+        className={styles.lightboxCloseButton}
+        onClick={onClose}
+        aria-label="画像モーダルを閉じる"
+      >
+        ×
+      </button>
+
+      {canNavigate && (
+        <button
+          type="button"
+          className={`${styles.lightboxNavButton} ${styles.lightboxNavPrev}`}
+          onClick={() =>
+            setCurrentIndex((prev) => (prev - 1 + images.length) % images.length)
+          }
+          aria-label="前の画像"
+        >
+          ‹
+        </button>
+      )}
+
+      <img
+        src={images[currentIndex]}
+        alt={`拡大画像 ${currentIndex + 1}`}
+        className={styles.lightboxImage}
+      />
+
+      {canNavigate && (
+        <button
+          type="button"
+          className={`${styles.lightboxNavButton} ${styles.lightboxNavNext}`}
+          onClick={() => setCurrentIndex((prev) => (prev + 1) % images.length)}
+          aria-label="次の画像"
+        >
+          ›
+        </button>
+      )}
+
+      {canNavigate && (
+        <div className={styles.lightboxIndicator}>
+          {currentIndex + 1} / {images.length}
+        </div>
+      )}
+    </div>
+  );
+});
+
 const RecordCardItem = memo(function RecordCardItem({
   record,
   index,
@@ -420,6 +532,7 @@ const RecordCardItem = memo(function RecordCardItem({
   handleCardActivate,
   startDeleteConfirmation,
   handleEditRecord,
+  openLightbox,
 }) {
   const sanitizedNote = useMemo(
     () => sanitizeHtml(record.note || ''),
@@ -487,14 +600,28 @@ const RecordCardItem = memo(function RecordCardItem({
           {record.images && record.images.length > 0 && (
             <div className={styles.recordImages}>
               {record.images.map((img, imgIndex) => (
-                <img
+                <button
                   key={imgIndex}
-                  src={img}
-                  alt={`記録画像 ${imgIndex + 1}`}
-                  width="100"
-                  height="100"
-                  className={styles.recordImage}
-                />
+                  type="button"
+                  className={styles.recordImageButton}
+                  onPointerDown={(event) => event.stopPropagation()}
+                  onPointerMove={(event) => event.stopPropagation()}
+                  onPointerUp={(event) => event.stopPropagation()}
+                  onPointerCancel={(event) => event.stopPropagation()}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    openLightbox(record.images, imgIndex, event.currentTarget);
+                  }}
+                  aria-label={`記録画像 ${imgIndex + 1} を拡大表示`}
+                >
+                  <img
+                    src={img}
+                    alt={`記録画像 ${imgIndex + 1}`}
+                    width="100"
+                    height="100"
+                    className={styles.recordImage}
+                  />
+                </button>
               ))}
             </div>
           )}
@@ -692,6 +819,11 @@ function App() {
   const [dragOffsetX, setDragOffsetX] = useState(0);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [lightboxState, setLightboxState] = useState({
+    isOpen: false,
+    images: [],
+    initialIndex: 0,
+  });
 
   const editorRef = useRef(null);
   const composingRef = useRef(false);
@@ -730,6 +862,7 @@ function App() {
     x: null,
     y: null,
   });
+  const lightboxTriggerRef = useRef(null);
 
   const {
     currentPrefix,
@@ -772,6 +905,25 @@ function App() {
     setIsDeleteDialogOpen(false);
     setDeleteTarget(null);
   };
+
+  const openLightbox = useCallback((targetImages, index, triggerElement) => {
+    lightboxTriggerRef.current = triggerElement || null;
+    setLightboxState({
+      isOpen: true,
+      images: Array.isArray(targetImages) ? targetImages : [],
+      initialIndex: index,
+    });
+  }, []);
+
+  const closeLightbox = useCallback(() => {
+    setLightboxState((prev) => ({ ...prev, isOpen: false }));
+    const trigger = lightboxTriggerRef.current;
+    if (trigger && typeof trigger.focus === 'function') {
+      requestAnimationFrame(() => {
+        trigger.focus();
+      });
+    }
+  }, []);
 
   const executeDelete = (target) => {
     if (!target) return;
@@ -1447,6 +1599,7 @@ function App() {
                       handleCardActivate={handleCardActivate}
                       startDeleteConfirmation={startDeleteConfirmation}
                       handleEditRecord={handleEditRecord}
+                      openLightbox={openLightbox}
                     />
                   );
                 })}
@@ -1584,11 +1737,20 @@ function App() {
                   <div className={styles.imagePreview}>
                     {images.map((img, index) => (
                       <div key={index} className={styles.imagePreviewItem}>
-                        <img
-                          src={img}
-                          alt={`プレビュー ${index + 1}`}
-                          className={styles.previewImage}
-                        />
+                        <button
+                          type="button"
+                          className={styles.previewImageButton}
+                          onClick={(event) =>
+                            openLightbox(images, index, event.currentTarget)
+                          }
+                          aria-label={`プレビュー ${index + 1} を拡大表示`}
+                        >
+                          <img
+                            src={img}
+                            alt={`プレビュー ${index + 1}`}
+                            className={styles.previewImage}
+                          />
+                        </button>
                         <button
                           onClick={() => removeImage(index)}
                           className={styles.removeImageButton}
@@ -1619,6 +1781,13 @@ function App() {
             <IconPlus />
           </button>
         )}
+
+        <ImageLightboxModal
+          isOpen={lightboxState.isOpen}
+          images={lightboxState.images}
+          initialIndex={lightboxState.initialIndex}
+          onClose={closeLightbox}
+        />
 
         {isDeleteDialogOpen && deleteTarget && (
           <div

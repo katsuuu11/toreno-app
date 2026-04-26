@@ -4,7 +4,7 @@ TRENO は、日付ごとにトレーニング記録を残すための React + Vi
 
 - カレンダーから日付選択
 - 部位・メモ（リッチテキスト）・画像を保存
-- 記録はブラウザの `localStorage` に保存
+- 記録はブラウザのローカルDB（IndexedDB）に保存（初回起動時に `localStorage` から移行）
 
 ## セットアップ
 
@@ -40,7 +40,7 @@ npm run lint
 
 ## データ保存仕様
 
-以下のキーで `localStorage` に保存します。
+以下のキーでデータを保持します（IndexedDB 内のアプリ状態）。
 
 - `treno_records_v1`: 日付ごとの記録本体
 - `treno_editBuffers_v1`: 入力途中データ（編集バッファ）

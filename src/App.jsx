@@ -1,6 +1,14 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import DOMPurify from 'dompurify';
 import styles from './App.module.css';
+import {
+  initializeLocalDb,
+  loadEditBuffers,
+  loadRecords,
+  migrateFromLocalStorageIfNeeded,
+  saveEditBuffers,
+  saveRecords,
+} from './services/localDb';
 
 // 許可する最小限のタグと属性（必要に応じて増やせる）
 const ALLOWED_TAGS = [
@@ -74,8 +82,6 @@ const getNowHHmm = () =>
     hour12: false,
   });
 
-const STORAGE_KEY_RECORDS = 'treno_records_v1';
-const STORAGE_KEY_EDITBUFFERS = 'treno_editBuffers_v1';
 const STORAGE_KEY_SUGGESTIONS = 'treno_suggestions_v1';
 const MAX_IMAGES_PER_RECORD = 3;
 const MAX_IMAGE_DATA_LENGTH = 600 * 1024;
@@ -776,41 +782,9 @@ function App() {
   const [inputParts, setInputParts] = useState('');
   const [selectedColor, setSelectedColor] = useState('#e74c3c');
   const [startTime, setStartTime] = useState('');
-  const [records, setRecords] = useState(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY_RECORDS);
-      const migrated = migrateRecords(raw ? JSON.parse(raw) : null);
-      if (Object.keys(migrated).length > 0) {
-        return migrated;
-      }
-      const legacyRaw = localStorage.getItem('records');
-      const legacyMigrated = migrateRecords(
-        legacyRaw ? JSON.parse(legacyRaw) : null
-      );
-      if (Object.keys(legacyMigrated).length > 0) {
-        localStorage.setItem(
-          STORAGE_KEY_RECORDS,
-          JSON.stringify(legacyMigrated)
-        );
-        return legacyMigrated;
-      }
-      return {};
-    } catch (error) {
-      console.warn('Failed to load records from storage', error);
-      return {};
-    }
-  });
-  const [editBuffers, setEditBuffers] = useState(() => {
-    try {
-      const raw =
-        localStorage.getItem(STORAGE_KEY_EDITBUFFERS) ||
-        localStorage.getItem('editBuffers');
-      return raw ? JSON.parse(raw) : {};
-    } catch (error) {
-      console.warn('Failed to load edit buffers from storage', error);
-      return {};
-    }
-  });
+  const [records, setRecords] = useState({});
+  const [editBuffers, setEditBuffers] = useState({});
+  const [isDbReady, setIsDbReady] = useState(false);
   const [mode, setMode] = useState('calendar'); // 'calendar', 'form'
   const [editingIndex, setEditingIndex] = useState(null);
   const [images, setImages] = useState([]);
@@ -1380,26 +1354,56 @@ function App() {
   }, [inputParts, noteHtml, selectedColor, startTime, editingDate]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY_RECORDS, JSON.stringify(records));
-    } catch (error) {
-      console.warn('Failed to save records to storage', error);
-      warnStorageError(
-        '記録の保存に失敗しました。ブラウザの容量をご確認ください。'
-      );
-    }
-  }, [records]);
+    if (!isDbReady) return;
+    (async () => {
+      try {
+        await saveRecords(records);
+      } catch (error) {
+        console.warn('Failed to save records to storage', error);
+        warnStorageError(
+          '記録の保存に失敗しました。ブラウザの容量をご確認ください。'
+        );
+      }
+    })();
+  }, [records, isDbReady]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY_EDITBUFFERS, JSON.stringify(editBuffers));
-    } catch (error) {
-      console.warn('Failed to save edit buffers to storage', error);
-      warnStorageError(
-        '編集中データの保存に失敗しました。ブラウザの容量をご確認ください。'
-      );
-    }
-  }, [editBuffers]);
+    if (!isDbReady) return;
+    (async () => {
+      try {
+        await saveEditBuffers(editBuffers);
+      } catch (error) {
+        console.warn('Failed to save edit buffers to storage', error);
+        warnStorageError(
+          '編集中データの保存に失敗しました。ブラウザの容量をご確認ください。'
+        );
+      }
+    })();
+  }, [editBuffers, isDbReady]);
+
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      try {
+        await initializeLocalDb();
+        await migrateFromLocalStorageIfNeeded({ migrateRecords });
+        const [loadedRecords, loadedEditBuffers] = await Promise.all([
+          loadRecords(),
+          loadEditBuffers(),
+        ]);
+        if (!isMounted) return;
+        setRecords(loadedRecords);
+        setEditBuffers(loadedEditBuffers);
+        setIsDbReady(true);
+      } catch (error) {
+        console.warn('Failed to initialize local DB', error);
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (mode !== 'form') return;

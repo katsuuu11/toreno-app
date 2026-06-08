@@ -2,11 +2,15 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import DOMPurify from 'dompurify';
 import styles from './App.module.css';
 import {
+  deleteImageBlob,
   initializeLocalDb,
   loadEditBuffers,
+  loadImageBlob,
   loadRecords,
   migrateFromLocalStorageIfNeeded,
+  migrateRecordImagesToBlobs,
   saveEditBuffers,
+  saveImageBlob,
   saveRecords,
 } from './services/localDb';
 
@@ -82,9 +86,6 @@ const getNowHHmm = () =>
     hour12: false,
   });
 
-const STORAGE_KEY_SUGGESTIONS = 'treno_suggestions_v1';
-const MAX_IMAGES_PER_RECORD = 3;
-const MAX_IMAGE_DATA_LENGTH = 600 * 1024;
 const SWIPE_OPEN_THRESHOLD = 30;
 const SWIPE_ACTION_WIDTH = 88;
 const SWIPE_TAP_SUPPRESS_THRESHOLD = 8;
@@ -92,10 +93,6 @@ const SWIPE_TAP_SUPPRESS_MS = 280;
 const TAP_MOVE_THRESHOLD_PX = 8;
 const DATE_DOUBLE_TAP_THRESHOLD_MS = 300;
 const DATE_TAP_MOVE_THRESHOLD_PX = 10;
-const SUGGESTION_LIMIT = 8;
-const SUGGESTION_MAX_ENTRIES = 1000;
-const SUGGESTION_MAX_LEN = 40;
-const SUGGESTION_MIN_LEN = 2;
 
 const COLOR_OPTIONS = [
   { id: 'red', color: '#e74c3c' },
@@ -123,223 +120,6 @@ const migrateRecords = (parsed) => {
   });
   return migrated;
 };
-
-const normalizeSuggestionKey = (text) =>
-  text
-    .normalize('NFKC')
-    .toLowerCase()
-    .replace(/[\s\u3000]+/g, '')
-    .replace(/[\p{P}\p{S}]+/gu, '');
-
-const getLinesFromHtml = (html) => {
-  const container = document.createElement('div');
-  container.innerHTML = html;
-  const text = container.innerText || '';
-  return text
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-};
-
-const isExcludedSuggestionText = (text) => {
-  const trimmed = text.trim();
-  if (!trimmed) return true;
-  if (trimmed.length < SUGGESTION_MIN_LEN) return true;
-  if (trimmed.length > SUGGESTION_MAX_LEN) return true;
-  const lowered = trimmed.toLowerCase();
-  if (lowered.includes('data:image/')) return true;
-  if (lowered.includes('http://') || lowered.includes('https://')) return true;
-  return false;
-};
-
-const pruneSuggestions = (suggestions) => {
-  const filtered = suggestions.filter(
-    (item) =>
-      item &&
-      typeof item.text === 'string' &&
-      !isExcludedSuggestionText(item.text)
-  );
-  const normalized = filtered
-    .map((item) => ({
-      ...item,
-      normalized: normalizeSuggestionKey(item.text),
-      count: Number(item.count) || 0,
-      lastUsed: Number(item.lastUsed) || 0,
-    }))
-    .filter((item) => item.normalized);
-  if (normalized.length <= SUGGESTION_MAX_ENTRIES) {
-    return normalized;
-  }
-  const sorted = [...normalized].sort((a, b) => {
-    if (a.lastUsed !== b.lastUsed) return a.lastUsed - b.lastUsed;
-    if (a.count !== b.count) return a.count - b.count;
-    return b.text.length - a.text.length;
-  });
-  return sorted.slice(sorted.length - SUGGESTION_MAX_ENTRIES);
-};
-
-const loadStoredSuggestions = () => {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY_SUGGESTIONS);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return pruneSuggestions(parsed);
-  } catch (error) {
-    console.warn('Failed to load suggestions from storage', error);
-    return [];
-  }
-};
-
-const saveStoredSuggestions = (suggestions) => {
-  try {
-    const payload = pruneSuggestions(suggestions).map(
-      ({ text, count, lastUsed }) => ({
-        text,
-        count,
-        lastUsed,
-      })
-    );
-    localStorage.setItem(STORAGE_KEY_SUGGESTIONS, JSON.stringify(payload));
-  } catch (error) {
-    console.warn('Failed to save suggestions to storage', error);
-  }
-};
-
-const mergeSuggestionsWithRecords = (existing, records) => {
-  const map = new Map(existing.map((item) => [item.text, { ...item }]));
-  Object.entries(records).forEach(([, value]) => {
-    (value?.records || []).forEach((record) => {
-      const lines = getLinesFromHtml(record.note || '');
-      lines.forEach((line) => {
-        const normalized = normalizeSuggestionKey(line);
-        if (!normalized || isExcludedSuggestionText(line)) return;
-        const current = map.get(line);
-        if (!current) {
-          map.set(line, {
-            text: line,
-            count: 0,
-            lastUsed: 0,
-            normalized,
-          });
-        }
-      });
-    });
-  });
-  return pruneSuggestions(Array.from(map.values()));
-};
-
-const getTextBeforeCursor = (editor) => {
-  const selection = window.getSelection();
-  if (!selection || selection.rangeCount === 0) {
-    return { textBefore: '', cursorIndex: 0, text: editor.innerText || '' };
-  }
-  const range = selection.getRangeAt(0);
-  const preRange = range.cloneRange();
-  preRange.selectNodeContents(editor);
-  preRange.setEnd(range.endContainer, range.endOffset);
-  const textBefore = preRange.toString();
-  const text = editor.innerText || '';
-  return { textBefore, cursorIndex: textBefore.length, text };
-};
-
-const getCurrentPrefix = (editor) => {
-  const { textBefore, cursorIndex, text } = getTextBeforeCursor(editor);
-  const lineStart = textBefore.lastIndexOf('\n') + 1;
-  const lineText = textBefore.slice(lineStart);
-  const match = lineText.match(/(\S+)$/);
-  const prefix = match ? match[1] : '';
-  const prefixStart = match ? cursorIndex - prefix.length : cursorIndex;
-  return { prefix, prefixStart, cursorIndex, text };
-};
-
-const setEditorPlainText = (editor, text) => {
-  while (editor.firstChild) {
-    editor.removeChild(editor.firstChild);
-  }
-  const lines = text.split('\n');
-  lines.forEach((line, index) => {
-    if (line) {
-      editor.appendChild(document.createTextNode(line));
-    }
-    if (index < lines.length - 1) {
-      editor.appendChild(document.createElement('br'));
-    }
-  });
-  if (lines.length === 0) {
-    editor.appendChild(document.createElement('br'));
-  }
-};
-
-const setCaretPositionByOffset = (editor, targetOffset) => {
-  const selection = window.getSelection();
-  if (!selection) return;
-  const range = document.createRange();
-  let offset = targetOffset;
-  const walker = document.createTreeWalker(
-    editor,
-    NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT
-  );
-  let node = walker.nextNode();
-  while (node) {
-    if (node.nodeType === Node.TEXT_NODE) {
-      const length = node.textContent.length;
-      if (offset <= length) {
-        range.setStart(node, offset);
-        range.collapse(true);
-        selection.removeAllRanges();
-        selection.addRange(range);
-        return;
-      }
-      offset -= length;
-    } else if (node.nodeName === 'BR') {
-      if (offset <= 1) {
-        range.setStartAfter(node);
-        range.collapse(true);
-        selection.removeAllRanges();
-        selection.addRange(range);
-        return;
-      }
-      offset -= 1;
-    }
-    node = walker.nextNode();
-  }
-  range.selectNodeContents(editor);
-  range.collapse(false);
-  selection.removeAllRanges();
-  selection.addRange(range);
-};
-
-const SuggestionBar = memo(function SuggestionBar({
-  suggestions,
-  onApply,
-  onClose,
-}) {
-  return (
-    <div className={styles.suggestionBar} role="presentation">
-      <div className={styles.suggestionScroll} role="listbox">
-        {suggestions.map((item) => (
-          <button
-            key={item.text}
-            className={styles.suggestionChip}
-            type="button"
-            onClick={() => onApply(item.text)}
-          >
-            {item.text}
-          </button>
-        ))}
-      </div>
-      <button
-        type="button"
-        aria-label="候補バーを閉じる"
-        className={styles.suggestionClose}
-        onClick={onClose}
-      >
-        ×
-      </button>
-    </div>
-  );
-});
 
 const IconSave = () => (
   <svg
@@ -544,6 +324,35 @@ const RecordCardItem = memo(function RecordCardItem({
     () => sanitizeHtml(record.note || ''),
     [record.note]
   );
+  const [imageUrl, setImageUrl] = useState('');
+
+  useEffect(() => {
+    let objectUrl = '';
+    let isActive = true;
+
+    if (!record.imageId) {
+      setImageUrl('');
+      return undefined;
+    }
+
+    (async () => {
+      try {
+        const blob = await loadImageBlob(record.imageId);
+        if (!isActive || !blob) return;
+        objectUrl = URL.createObjectURL(blob);
+        setImageUrl(objectUrl);
+      } catch (error) {
+        console.warn('Failed to load image from IndexedDB', error);
+      }
+    })();
+
+    return () => {
+      isActive = false;
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
+  }, [record.imageId]);
 
   return (
     <div className={styles.swipeCardContainer} onClick={(event) => event.stopPropagation()}>
@@ -603,32 +412,29 @@ const RecordCardItem = memo(function RecordCardItem({
 
           <div dangerouslySetInnerHTML={{ __html: sanitizedNote }} className={styles.recordNote} />
 
-          {record.images && record.images.length > 0 && (
+          {imageUrl && (
             <div className={styles.recordImages}>
-              {record.images.map((img, imgIndex) => (
-                <button
-                  key={imgIndex}
-                  type="button"
-                  className={styles.recordImageButton}
-                  onPointerDown={(event) => event.stopPropagation()}
-                  onPointerMove={(event) => event.stopPropagation()}
-                  onPointerUp={(event) => event.stopPropagation()}
-                  onPointerCancel={(event) => event.stopPropagation()}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    openLightbox(record.images, imgIndex, event.currentTarget);
-                  }}
-                  aria-label={`記録画像 ${imgIndex + 1} を拡大表示`}
-                >
-                  <img
-                    src={img}
-                    alt={`記録画像 ${imgIndex + 1}`}
-                    width="100"
-                    height="100"
-                    className={styles.recordImage}
-                  />
-                </button>
-              ))}
+              <button
+                type="button"
+                className={styles.recordImageButton}
+                onPointerDown={(event) => event.stopPropagation()}
+                onPointerMove={(event) => event.stopPropagation()}
+                onPointerUp={(event) => event.stopPropagation()}
+                onPointerCancel={(event) => event.stopPropagation()}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  openLightbox([imageUrl], 0, event.currentTarget);
+                }}
+                aria-label="記録画像を拡大表示"
+              >
+                <img
+                  src={imageUrl}
+                  alt="記録画像"
+                  width="100"
+                  height="100"
+                  className={styles.recordImage}
+                />
+              </button>
             </div>
           )}
         </div>
@@ -637,143 +443,6 @@ const RecordCardItem = memo(function RecordCardItem({
   );
 });
 
-const useSuggestionBar = ({
-  editorRef,
-  records,
-  editingDate,
-  composingRef,
-  setNoteHtml,
-}) => {
-  const [suggestions, setSuggestions] = useState([]);
-  const [currentPrefix, setCurrentPrefix] = useState('');
-  const [isClosed, setIsClosed] = useState(false);
-  const suggestionDataRef = useRef([]);
-  const lastPrefixRef = useRef('');
-
-  useEffect(() => {
-    const stored = loadStoredSuggestions();
-    const merged = mergeSuggestionsWithRecords(stored, records);
-    suggestionDataRef.current = merged;
-    saveStoredSuggestions(merged);
-  }, [records]);
-
-  const refreshSuggestions = useCallback(() => {
-    if (composingRef.current) return;
-    const editor = editorRef.current;
-    if (!editor) return;
-    const { prefix } = getCurrentPrefix(editor);
-    setCurrentPrefix(prefix);
-    if (prefix !== lastPrefixRef.current) {
-      setIsClosed(false);
-      lastPrefixRef.current = prefix;
-    }
-    if (!prefix) {
-      setSuggestions([]);
-      return;
-    }
-    const normalizedPrefix = normalizeSuggestionKey(prefix);
-    if (!normalizedPrefix) {
-      setSuggestions([]);
-      return;
-    }
-    const now = Date.now();
-    const targetYmd = editingDate ? formatDateKey(editingDate) : null;
-    const matches = suggestionDataRef.current
-      .filter((item) => item.normalized.startsWith(normalizedPrefix))
-      .map((item) => {
-        const days =
-          item.lastUsed > 0 ? (now - item.lastUsed) / 86400000 : 9999;
-        const recencyWeight = item.lastUsed ? 1 / (1 + days) : 0;
-        const frequencyWeight = Math.log10(item.count + 1);
-        const sameDayBoost =
-          targetYmd && item.lastUsed
-            ? formatDateKey(new Date(item.lastUsed)) === targetYmd
-              ? 0.5
-              : 0
-            : 0;
-        return {
-          ...item,
-          score: recencyWeight * 2 + frequencyWeight + sameDayBoost,
-        };
-      })
-      .sort((a, b) => b.score - a.score)
-      .slice(0, SUGGESTION_LIMIT);
-    setSuggestions(matches);
-  }, [composingRef, editorRef, editingDate]);
-
-  const applySuggestion = useCallback(
-    (text) => {
-      const editor = editorRef.current;
-      if (!editor) return;
-      const { prefixStart, cursorIndex, text: fullText } =
-        getCurrentPrefix(editor);
-      const newText =
-        fullText.slice(0, prefixStart) +
-        text +
-        fullText.slice(cursorIndex);
-      setEditorPlainText(editor, newText);
-      setCaretPositionByOffset(editor, prefixStart + text.length);
-      setNoteHtml(sanitizeHtml(editor.innerHTML));
-      const now = Date.now();
-      const map = new Map(
-        suggestionDataRef.current.map((item) => [item.text, { ...item }])
-      );
-      const current = map.get(text);
-      if (current) {
-        current.count += 1;
-        current.lastUsed = now;
-      } else if (!isExcludedSuggestionText(text)) {
-        map.set(text, {
-          text,
-          count: 1,
-          lastUsed: now,
-          normalized: normalizeSuggestionKey(text),
-        });
-      }
-      const updated = pruneSuggestions(Array.from(map.values()));
-      suggestionDataRef.current = updated;
-      saveStoredSuggestions(updated);
-      refreshSuggestions();
-    },
-    [editorRef, refreshSuggestions, setNoteHtml]
-  );
-
-  const addSuggestionsFromNote = useCallback((noteHtml) => {
-    const lines = getLinesFromHtml(noteHtml || '');
-    if (lines.length === 0) return;
-    const map = new Map(
-      suggestionDataRef.current.map((item) => [item.text, { ...item }])
-    );
-    lines.forEach((line) => {
-      const normalized = normalizeSuggestionKey(line);
-      if (!normalized || isExcludedSuggestionText(line)) return;
-      if (map.has(line)) return;
-      map.set(line, {
-        text: line,
-        count: 0,
-        lastUsed: 0,
-        normalized,
-      });
-    });
-    const updated = pruneSuggestions(Array.from(map.values()));
-    suggestionDataRef.current = updated;
-    saveStoredSuggestions(updated);
-  }, []);
-
-  const closeSuggestionBar = useCallback(() => {
-    setIsClosed(true);
-  }, []);
-
-  return {
-    currentPrefix,
-    suggestions,
-    isClosed,
-    refreshSuggestions,
-    applySuggestion,
-    addSuggestionsFromNote,
-    closeSuggestionBar,
-  };
-};
 
 function App() {
   const [noteHtml, setNoteHtml] = useState('');
@@ -787,7 +456,10 @@ function App() {
   const [isDbReady, setIsDbReady] = useState(false);
   const [mode, setMode] = useState('calendar'); // 'calendar', 'form'
   const [editingIndex, setEditingIndex] = useState(null);
-  const [images, setImages] = useState([]);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState('');
+  const [selectedImageBlob, setSelectedImageBlob] = useState(null);
+  const [currentImageId, setCurrentImageId] = useState(null);
+  const [isImageRemoved, setIsImageRemoved] = useState(false);
   const [openSwipeId, setOpenSwipeId] = useState(null);
   const [draggingSwipeId, setDraggingSwipeId] = useState(null);
   const [dragOffsetX, setDragOffsetX] = useState(0);
@@ -837,28 +509,28 @@ function App() {
     y: null,
   });
   const lightboxTriggerRef = useRef(null);
+  const formImageUrlRef = useRef('');
 
-  const {
-    currentPrefix,
-    suggestions,
-    isClosed: isSuggestionClosed,
-    refreshSuggestions,
-    applySuggestion,
-    addSuggestionsFromNote,
-    closeSuggestionBar,
-  } = useSuggestionBar({
-    editorRef,
-    records,
-    editingDate,
-    composingRef,
-    setNoteHtml,
-  });
+  const updateFormImagePreview = useCallback((url) => {
+    if (formImageUrlRef.current && formImageUrlRef.current !== url) {
+      URL.revokeObjectURL(formImageUrlRef.current);
+    }
+    formImageUrlRef.current = url;
+    setImagePreviewUrl(url);
+  }, []);
 
-  const showSuggestionBar =
-    mode === 'form' &&
-    currentPrefix.length > 0 &&
-    suggestions.length > 0 &&
-    !isSuggestionClosed;
+  const clearFormImageState = useCallback(() => {
+    updateFormImagePreview('');
+    setSelectedImageBlob(null);
+    setCurrentImageId(null);
+    setIsImageRemoved(false);
+  }, [updateFormImagePreview]);
+
+  useEffect(() => () => {
+    if (formImageUrlRef.current) {
+      URL.revokeObjectURL(formImageUrlRef.current);
+    }
+  }, []);
 
   const warnStorageError = (message) => {
     const now = Date.now();
@@ -902,6 +574,7 @@ function App() {
   const executeDelete = (target) => {
     if (!target) return;
     const { ymd, index, swipeId } = target;
+    const imageIdToDelete = records[ymd]?.records?.[index]?.imageId;
 
     setRecords((prev) => {
       const updated = (prev[ymd]?.records || []).filter((_, i) => i !== index);
@@ -928,11 +601,17 @@ function App() {
       setNoteHtml('');
       setSelectedColor('#e74c3c');
       setStartTime('');
-      setImages([]);
+      clearFormImageState();
     }
 
     if (openSwipeId === swipeId) {
       closeSwipe();
+    }
+
+    if (imageIdToDelete) {
+      deleteImageBlob(imageIdToDelete).catch((error) => {
+        console.warn('Failed to delete image from IndexedDB', error);
+      });
     }
 
     closeDeleteDialog();
@@ -1132,7 +811,7 @@ function App() {
     setNoteHtml(buffer.note || '');
     setSelectedColor(buffer.color || '#e74c3c');
     setStartTime(buffer.startTime || getNowHHmm());
-    setImages([]);
+    clearFormImageState();
     setMode('form');
   };
 
@@ -1208,14 +887,29 @@ function App() {
   };
 
   // 編集開始
-  const handleEditRecord = (record, index) => {
+  const handleEditRecord = async (record, index) => {
     setEditingDate(selectedDate);
     setEditingIndex(index);
     setInputParts(record.part);
     setNoteHtml(record.note);
     setSelectedColor(record.color);
     setStartTime(record.startTime || '');
-    setImages(record.images || []);
+    setSelectedImageBlob(null);
+    setCurrentImageId(record.imageId || null);
+    setIsImageRemoved(false);
+    updateFormImagePreview('');
+
+    if (record.imageId) {
+      try {
+        const blob = await loadImageBlob(record.imageId);
+        if (blob) {
+          updateFormImagePreview(URL.createObjectURL(blob));
+        }
+      } catch (error) {
+        console.warn('Failed to load image for editing', error);
+      }
+    }
+
     setMode('form');
     closeSwipe();
   };
@@ -1223,62 +917,34 @@ function App() {
   // 画像アップロード処理
   const handleImageUpload = (event) => {
     const input = event.target;
-    const file = event.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const img = new Image();
-        img.onload = () => {
-          // 画像をリサイズ（最大幅400px）
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
-          if (!ctx) {
-            alert('画像の読み込みに失敗しました。');
-            if (input) input.value = '';
-            return;
-          }
+    const file = input.files?.[0];
 
-          const maxWidth = 400;
-          const ratio = Math.min(
-            1,
-            Math.min(maxWidth / img.width, maxWidth / img.height)
-          );
-
-          canvas.width = img.width * ratio;
-          canvas.height = img.height * ratio;
-
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-          const resizedImageData = canvas.toDataURL('image/jpeg', 0.8);
-          if (resizedImageData.length > MAX_IMAGE_DATA_LENGTH) {
-            alert('画像サイズが大きすぎるため追加できません。');
-            if (input) input.value = '';
-            return;
-          }
-          setImages((prev) => {
-            if (prev.length + 1 > MAX_IMAGES_PER_RECORD) {
-              alert('画像は最大3枚まで添付できます。');
-              return prev;
-            }
-            return [...prev, resizedImageData];
-          });
-          if (input) input.value = '';
-        };
-        img.src = e.target.result;
-      };
-      reader.readAsDataURL(file);
-    } else if (input) {
+    if (!file) {
       input.value = '';
+      return;
     }
+
+    if (!file.type.startsWith('image/')) {
+      alert('画像ファイルを選択してください。');
+      input.value = '';
+      return;
+    }
+
+    setSelectedImageBlob(file);
+    setIsImageRemoved(false);
+    updateFormImagePreview(URL.createObjectURL(file));
+    input.value = '';
   };
 
   // 画像削除
-  const removeImage = (index) => {
-    setImages((prev) => prev.filter((_, i) => i !== index));
+  const removeImage = () => {
+    updateFormImagePreview('');
+    setSelectedImageBlob(null);
+    setIsImageRemoved(Boolean(currentImageId));
   };
 
   // 保存処理
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!editingDate) return;
     const ymd = formatDateKey(editingDate);
     const bufferStartTime = editBuffers[ymd]?.startTime;
@@ -1293,8 +959,24 @@ function App() {
       .replace(/<[^>]*>/g, '')
       .trim();
 
-    if (!inputParts.trim() && !noteText && images.length === 0) {
+    if (!inputParts.trim() && !noteText && !imagePreviewUrl) {
       alert('部位・記録・画像のいずれかを入力してください。');
+      return;
+    }
+
+    const previousImageId =
+      editingIndex !== null ? records[ymd]?.records?.[editingIndex]?.imageId : null;
+    let nextImageId = currentImageId;
+
+    try {
+      if (selectedImageBlob) {
+        nextImageId = await saveImageBlob(selectedImageBlob);
+      } else if (isImageRemoved) {
+        nextImageId = null;
+      }
+    } catch (error) {
+      console.warn('Failed to save image to IndexedDB', error);
+      alert('画像の保存に失敗しました。');
       return;
     }
 
@@ -1302,7 +984,7 @@ function App() {
       part: inputParts,
       color: selectedColor,
       note: cleanHtml,
-      images,
+      imageId: nextImageId || null,
       startTime: resolvedStartTime,
     };
 
@@ -1327,15 +1009,20 @@ function App() {
       return copy;
     });
 
-    addSuggestionsFromNote(cleanHtml);
+    if (previousImageId && previousImageId !== nextImageId) {
+      deleteImageBlob(previousImageId).catch((error) => {
+        console.warn('Failed to delete replaced image from IndexedDB', error);
+      });
+    }
 
     setMode('calendar');
     setInputParts('');
     setNoteHtml('');
     setSelectedColor('#e74c3c');
+    setEditingDate(null);
     setEditingIndex(null);
     setStartTime('');
-    setImages([]);
+    clearFormImageState();
   };
 
   // 編集バッファ更新
@@ -1391,8 +1078,13 @@ function App() {
           loadRecords(),
           loadEditBuffers(),
         ]);
+        const { records: imageMigratedRecords, changed } =
+          await migrateRecordImagesToBlobs(loadedRecords);
+        if (changed) {
+          await saveRecords(imageMigratedRecords);
+        }
         if (!isMounted) return;
-        setRecords(loadedRecords);
+        setRecords(imageMigratedRecords);
         setEditBuffers(loadedEditBuffers);
         setIsDbReady(true);
       } catch (error) {
@@ -1413,8 +1105,7 @@ function App() {
     if (el.innerHTML !== clean) {
       el.innerHTML = clean;
     }
-    refreshSuggestions();
-  }, [mode, editingDate, editingIndex, noteHtml, refreshSuggestions]);
+  }, [mode, editingDate, editingIndex, noteHtml]);
 
   useEffect(() => {
     if (!isDeleteDialogOpen) return undefined;
@@ -1655,14 +1346,7 @@ function App() {
               </div>
             </header>
 
-            <main
-              className={styles.main}
-              style={
-                showSuggestionBar
-                  ? { paddingBottom: '6.5rem' }
-                  : undefined
-              }
-            >
+            <main className={styles.main}>
               <div>
                 <input
                   type="text"
@@ -1712,16 +1396,12 @@ function App() {
                     composingRef.current = false;
                     const html = editorRef.current?.innerHTML || '';
                     setNoteHtml(sanitizeHtml(html));
-                    refreshSuggestions();
                   }}
                   onInput={() => {
                     if (composingRef.current) return;
                     const html = editorRef.current?.innerHTML || '';
                     setNoteHtml(sanitizeHtml(html));
-                    refreshSuggestions();
                   }}
-                  onKeyUp={refreshSuggestions}
-                  onClick={refreshSuggestions}
                   onPaste={(e) => {
                     e.preventDefault();
                     const html = e.clipboardData.getData('text/html');
@@ -1737,45 +1417,37 @@ function App() {
                   className={styles.editor}
                 />
 
-                {images.length > 0 && (
+                {imagePreviewUrl && (
                   <div className={styles.imagePreview}>
-                    {images.map((img, index) => (
-                      <div key={index} className={styles.imagePreviewItem}>
-                        <button
-                          type="button"
-                          className={styles.previewImageButton}
-                          onClick={(event) =>
-                            openLightbox(images, index, event.currentTarget)
-                          }
-                          aria-label={`プレビュー ${index + 1} を拡大表示`}
-                        >
-                          <img
-                            src={img}
-                            alt={`プレビュー ${index + 1}`}
-                            className={styles.previewImage}
-                          />
-                        </button>
-                        <button
-                          onClick={() => removeImage(index)}
-                          className={styles.removeImageButton}
-                          type="button"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ))}
+                    <div className={styles.imagePreviewItem}>
+                      <button
+                        type="button"
+                        className={styles.previewImageButton}
+                        onClick={(event) =>
+                          openLightbox([imagePreviewUrl], 0, event.currentTarget)
+                        }
+                        aria-label="プレビューを拡大表示"
+                      >
+                        <img
+                          src={imagePreviewUrl}
+                          alt="プレビュー"
+                          className={styles.previewImage}
+                        />
+                      </button>
+                      <button
+                        onClick={removeImage}
+                        className={styles.removeImageButton}
+                        type="button"
+                        aria-label="画像を削除"
+                      >
+                        ×
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
 
             </main>
-            {showSuggestionBar && (
-              <SuggestionBar
-                suggestions={suggestions}
-                onApply={applySuggestion}
-                onClose={closeSuggestionBar}
-              />
-            )}
           </div>
         )}
 

@@ -1,6 +1,7 @@
 const DB_NAME = 'treno_local_db';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_APP_STATE = 'app_state';
+const STORE_IMAGES = 'images';
 
 const STORAGE_KEY_RECORDS = 'treno_records_v1';
 const STORAGE_KEY_EDITBUFFERS = 'treno_editBuffers_v1';
@@ -19,6 +20,9 @@ const openDb = () => {
       if (!db.objectStoreNames.contains(STORE_APP_STATE)) {
         db.createObjectStore(STORE_APP_STATE);
       }
+      if (!db.objectStoreNames.contains(STORE_IMAGES)) {
+        db.createObjectStore(STORE_IMAGES);
+      }
     };
 
     request.onsuccess = () => resolve(request.result);
@@ -28,11 +32,11 @@ const openDb = () => {
   return dbPromise;
 };
 
-const withStore = async (mode, callback) => {
+const withStore = async (storeName, mode, callback) => {
   const db = await openDb();
   return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_APP_STATE, mode);
-    const store = tx.objectStore(STORE_APP_STATE);
+    const tx = db.transaction(storeName, mode);
+    const store = tx.objectStore(storeName);
 
     let request;
     try {
@@ -48,12 +52,14 @@ const withStore = async (mode, callback) => {
 };
 
 const getState = async (key, fallback) => {
-  const result = await withStore('readonly', (store) => store.get(key));
+  const result = await withStore(STORE_APP_STATE, 'readonly', (store) =>
+    store.get(key)
+  );
   return result ?? fallback;
 };
 
 const setState = async (key, value) => {
-  await withStore('readwrite', (store) => store.put(value, key));
+  await withStore(STORE_APP_STATE, 'readwrite', (store) => store.put(value, key));
 };
 
 const parseJsonSafely = (raw, fallback) => {
@@ -82,8 +88,75 @@ const pickFirstNonEmptyRecords = (primary, secondary) => {
 const normalizeObject = (value) =>
   value && typeof value === 'object' && !Array.isArray(value) ? value : {};
 
+const createImageId = () => {
+  if (globalThis.crypto?.randomUUID) {
+    return globalThis.crypto.randomUUID();
+  }
+  return `image_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+};
+
+const dataUrlToBlob = async (dataUrl) => {
+  const response = await fetch(dataUrl);
+  return response.blob();
+};
+
+const isDataUrlImage = (value) =>
+  typeof value === 'string' && value.startsWith('data:image/');
+
 export const initializeLocalDb = async () => {
   await openDb();
+};
+
+export const saveImageBlob = async (blob, imageId = createImageId()) => {
+  await withStore(STORE_IMAGES, 'readwrite', (store) => store.put(blob, imageId));
+  return imageId;
+};
+
+export const loadImageBlob = async (imageId) => {
+  if (!imageId) return null;
+  return withStore(STORE_IMAGES, 'readonly', (store) => store.get(imageId));
+};
+
+export const deleteImageBlob = async (imageId) => {
+  if (!imageId) return;
+  await withStore(STORE_IMAGES, 'readwrite', (store) => store.delete(imageId));
+};
+
+export const migrateRecordImagesToBlobs = async (records) => {
+  let changed = false;
+  const migrated = {};
+
+  for (const [ymd, value] of Object.entries(normalizeObject(records))) {
+    const dayRecords = Array.isArray(value?.records) ? value.records : [];
+    migrated[ymd] = {
+      records: await Promise.all(
+        dayRecords.map(async (record) => {
+          if (!record || typeof record !== 'object') return record;
+
+          const nextRecord = { ...record };
+          const legacyImages = Array.isArray(nextRecord.images)
+            ? nextRecord.images
+            : [];
+          const legacyImage = legacyImages.find(isDataUrlImage);
+
+          if (!nextRecord.imageId && legacyImage) {
+            const blob = await dataUrlToBlob(legacyImage);
+            nextRecord.imageId = await saveImageBlob(blob);
+            changed = true;
+          }
+
+          if ('images' in nextRecord) {
+            delete nextRecord.images;
+            changed = true;
+          }
+
+          return nextRecord;
+        })
+      ),
+    };
+  }
+
+  return { records: migrated, changed };
 };
 
 export const migrateFromLocalStorageIfNeeded = async ({ migrateRecords }) => {
@@ -101,8 +174,11 @@ export const migrateFromLocalStorageIfNeeded = async ({ migrateRecords }) => {
     migrateRecords(parseJsonSafely(legacyRawRecords, null))
   );
   const editBuffersCandidate = normalizeObject(parseJsonSafely(rawEditBuffers, {}));
+  const { records: migratedRecords } = await migrateRecordImagesToBlobs(
+    recordsCandidate
+  );
 
-  await setState(STORAGE_KEY_RECORDS, recordsCandidate);
+  await setState(STORAGE_KEY_RECORDS, migratedRecords);
   await setState(STORAGE_KEY_EDITBUFFERS, editBuffersCandidate);
   await setState(STORAGE_KEY_MIGRATED, true);
 };

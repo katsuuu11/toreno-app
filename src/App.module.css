@@ -454,6 +454,16 @@
   align-items: center;
   justify-content: center;
   isolation: isolate;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: none;
+}
+
+.colorPicker * {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .colorPickerOpen {
@@ -498,12 +508,13 @@
   border-radius: 50%;
   border: 2px solid #ffffff;
   box-shadow: 0 5px 14px rgba(17, 24, 39, 0.18);
+  transform: translate(var(--color-dot-x), var(--color-dot-y)) scale(1);
   animation: colorFanPop 0.14s ease-out both;
-  transition: scale 0.12s ease, box-shadow 0.12s ease;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
 }
 
 .colorFanDotActive {
-  scale: 1.24;
+  transform: translate(var(--color-dot-x), var(--color-dot-y)) scale(1.2);
   box-shadow: 0 0 0 3px #ffffff, 0 0 0 5px rgba(17, 24, 39, 0.2),
     0 8px 18px rgba(17, 24, 39, 0.22);
 }
@@ -512,12 +523,10 @@
 @keyframes colorFanPop {
   from {
     opacity: 0;
-    scale: 0.7;
   }
 
   to {
     opacity: 1;
-    scale: 1;
   }
 }
 

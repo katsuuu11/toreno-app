@@ -96,6 +96,7 @@ const DATE_TAP_MOVE_THRESHOLD_PX = 10;
 const COLOR_LONG_PRESS_MS = 360;
 const COLOR_FAN_RADIUS_PX = 72;
 const COLOR_SELECT_DISTANCE_PX = 34;
+const COLOR_MIN_SELECT_DISTANCE_PX = 24;
 const COLOR_FAN_START_DEG = 210;
 const COLOR_FAN_END_DEG = 330;
 
@@ -542,7 +543,6 @@ function App() {
     originY: 0,
     isOpen: false,
     activeColor: null,
-    lastVibratedColor: null,
   });
 
   const updateFormImagePreview = useCallback((url) => {
@@ -571,7 +571,6 @@ function App() {
       originY: 0,
       isOpen: false,
       activeColor: null,
-      lastVibratedColor: null,
     };
     setColorPickerState({
       isOpen: false,
@@ -588,6 +587,12 @@ function App() {
 
   const getColorCandidateAtPoint = useCallback((clientX, clientY) => {
     const { originX, originY } = colorPickerRef.current;
+    const distanceFromCenter = Math.hypot(clientX - originX, clientY - originY);
+
+    if (distanceFromCenter < COLOR_MIN_SELECT_DISTANCE_PX) {
+      return null;
+    }
+
     let nearest = null;
     let nearestDistance = Infinity;
 
@@ -606,24 +611,22 @@ function App() {
 
   const previewColorCandidate = useCallback((event) => {
     if (!colorPickerRef.current.isOpen) return;
+
+    event.preventDefault();
     const candidate = getColorCandidateAtPoint(event.clientX, event.clientY);
     const activeColor = candidate?.color || null;
-    if (activeColor && activeColor !== colorPickerRef.current.lastVibratedColor) {
-      vibrate(5);
-      colorPickerRef.current.lastVibratedColor = activeColor;
-    }
     colorPickerRef.current.activeColor = activeColor;
     setColorPickerState((prev) => {
-      if (prev.activeColor === activeColor && prev.previewColor === activeColor) {
+      if (prev.activeColor === activeColor && prev.previewColor === null) {
         return prev;
       }
       return {
         isOpen: true,
         activeColor,
-        previewColor: activeColor,
+        previewColor: null,
       };
     });
-  }, [getColorCandidateAtPoint, vibrate]);
+  }, [getColorCandidateAtPoint]);
 
   const handleColorPointerDown = useCallback((event) => {
     if (event.pointerType === 'mouse' && event.button !== 0) return;
@@ -642,7 +645,6 @@ function App() {
       originY: rect.top + rect.height / 2,
       isOpen: false,
       activeColor: null,
-      lastVibratedColor: null,
     };
 
     colorPickerRef.current.timerId = setTimeout(() => {
@@ -674,18 +676,21 @@ function App() {
       colorPickerRef.current.timerId = null;
     }
 
-    const candidate = colorPickerRef.current.isOpen
-      ? getColorCandidateAtPoint(event.clientX, event.clientY)
+    event.preventDefault();
+
+    const activeColor = colorPickerRef.current.isOpen
+      ? colorPickerRef.current.activeColor
       : null;
-    if (candidate) {
-      setSelectedColor(candidate.color);
+    if (activeColor) {
+      setSelectedColor(activeColor);
     }
 
     closeColorPicker();
-  }, [closeColorPicker, getColorCandidateAtPoint]);
+  }, [closeColorPicker]);
 
   const handleColorPointerCancel = useCallback((event) => {
     if (colorPickerRef.current.pointerId !== event.pointerId) return;
+    event.preventDefault();
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
@@ -1412,7 +1417,7 @@ function App() {
 
   const selectedYmd = formatDateKey(selectedDate);
   const selectedRecords = records[selectedYmd]?.records || [];
-  const displayedColor = colorPickerState.previewColor || selectedColor;
+  const displayedColor = selectedColor;
 
   return (
     <div className={styles.appContainer}>
@@ -1536,6 +1541,7 @@ function App() {
                   className={`${styles.colorPicker} ${
                     colorPickerState.isOpen ? styles.colorPickerOpen : ''
                   }`}
+                  onContextMenu={(event) => event.preventDefault()}
                 >
                   {colorPickerState.isOpen && (
                     <div
@@ -1551,8 +1557,9 @@ function App() {
                               : ''
                           }`}
                           style={{
+                            '--color-dot-x': `${option.offsetX}px`,
+                            '--color-dot-y': `${option.offsetY}px`,
                             backgroundColor: option.color,
-                            transform: `translate(${option.offsetX}px, ${option.offsetY}px)`,
                           }}
                         />
                       ))}
@@ -1567,6 +1574,7 @@ function App() {
                     onPointerMove={handleColorPointerMove}
                     onPointerUp={handleColorPointerEnd}
                     onPointerCancel={handleColorPointerCancel}
+                    onContextMenu={(event) => event.preventDefault()}
                     aria-label="長押しして色メニューを開く"
                   />
                 </div>

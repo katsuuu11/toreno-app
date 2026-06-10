@@ -442,14 +442,8 @@
 
 .colorSection {
   display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.colorLabel {
-  font-size: 0.75rem;
-  color: #6b7280;
-  margin: 0;
+  justify-content: center;
+  align-items: center;
 }
 
 .colorPicker {
@@ -514,11 +508,6 @@
     0 8px 18px rgba(17, 24, 39, 0.22);
 }
 
-.colorHint {
-  margin: -0.25rem 0 0;
-  font-size: 0.7rem;
-  color: #9ca3af;
-}
 
 @keyframes colorFanPop {
   from {

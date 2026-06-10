@@ -94,10 +94,10 @@ const TAP_MOVE_THRESHOLD_PX = 8;
 const DATE_DOUBLE_TAP_THRESHOLD_MS = 300;
 const DATE_TAP_MOVE_THRESHOLD_PX = 10;
 const COLOR_LONG_PRESS_MS = 360;
-const COLOR_FAN_RADIUS_PX = 86;
+const COLOR_FAN_RADIUS_PX = 72;
 const COLOR_SELECT_DISTANCE_PX = 34;
-const COLOR_FAN_START_DEG = 200;
-const COLOR_FAN_END_DEG = 340;
+const COLOR_FAN_START_DEG = 210;
+const COLOR_FAN_END_DEG = 330;
 
 const COLOR_OPTIONS = [
   { id: 'red', label: '赤', color: '#e74c3c' },
@@ -542,6 +542,7 @@ function App() {
     originY: 0,
     isOpen: false,
     activeColor: null,
+    lastVibratedColor: null,
   });
 
   const updateFormImagePreview = useCallback((url) => {
@@ -570,12 +571,19 @@ function App() {
       originY: 0,
       isOpen: false,
       activeColor: null,
+      lastVibratedColor: null,
     };
     setColorPickerState({
       isOpen: false,
       previewColor: null,
       activeColor: null,
     });
+  }, []);
+
+  const vibrate = useCallback((duration = 10) => {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      navigator.vibrate(duration);
+    }
   }, []);
 
   const getColorCandidateAtPoint = useCallback((clientX, clientY) => {
@@ -600,6 +608,10 @@ function App() {
     if (!colorPickerRef.current.isOpen) return;
     const candidate = getColorCandidateAtPoint(event.clientX, event.clientY);
     const activeColor = candidate?.color || null;
+    if (activeColor && activeColor !== colorPickerRef.current.lastVibratedColor) {
+      vibrate(5);
+      colorPickerRef.current.lastVibratedColor = activeColor;
+    }
     colorPickerRef.current.activeColor = activeColor;
     setColorPickerState((prev) => {
       if (prev.activeColor === activeColor && prev.previewColor === activeColor) {
@@ -611,7 +623,7 @@ function App() {
         previewColor: activeColor,
       };
     });
-  }, [getColorCandidateAtPoint]);
+  }, [getColorCandidateAtPoint, vibrate]);
 
   const handleColorPointerDown = useCallback((event) => {
     if (event.pointerType === 'mouse' && event.button !== 0) return;
@@ -630,18 +642,20 @@ function App() {
       originY: rect.top + rect.height / 2,
       isOpen: false,
       activeColor: null,
+      lastVibratedColor: null,
     };
 
     colorPickerRef.current.timerId = setTimeout(() => {
       colorPickerRef.current.timerId = null;
       colorPickerRef.current.isOpen = true;
+      vibrate(10);
       setColorPickerState({
         isOpen: true,
         previewColor: null,
         activeColor: null,
       });
     }, COLOR_LONG_PRESS_MS);
-  }, []);
+  }, [vibrate]);
 
   const handleColorPointerMove = useCallback((event) => {
     if (colorPickerRef.current.pointerId !== event.pointerId) return;
@@ -1518,7 +1532,6 @@ function App() {
               </div>
 
               <div className={styles.colorSection}>
-                <p className={styles.colorLabel}>カレンダー表示色</p>
                 <div
                   className={`${styles.colorPicker} ${
                     colorPickerState.isOpen ? styles.colorPickerOpen : ''
@@ -1554,13 +1567,9 @@ function App() {
                     onPointerMove={handleColorPointerMove}
                     onPointerUp={handleColorPointerEnd}
                     onPointerCancel={handleColorPointerCancel}
-                    aria-label="長押ししてカレンダー表示色を選択"
-                    aria-describedby="color-picker-help"
+                    aria-label="長押しして色メニューを開く"
                   />
                 </div>
-                <p id="color-picker-help" className={styles.colorHint}>
-                  ドットを長押しして、上に出る色へ動かして離す
-                </p>
               </div>
 
               <div className={styles.notesWrapper}>

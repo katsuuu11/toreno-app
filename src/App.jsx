@@ -93,16 +93,36 @@ const SWIPE_TAP_SUPPRESS_MS = 280;
 const TAP_MOVE_THRESHOLD_PX = 8;
 const DATE_DOUBLE_TAP_THRESHOLD_MS = 300;
 const DATE_TAP_MOVE_THRESHOLD_PX = 10;
+const COLOR_LONG_PRESS_MS = 360;
+const COLOR_FAN_RADIUS_PX = 86;
+const COLOR_SELECT_DISTANCE_PX = 34;
+const COLOR_FAN_START_DEG = 200;
+const COLOR_FAN_END_DEG = 340;
 
 const COLOR_OPTIONS = [
-  { id: 'red', color: '#e74c3c' },
-  { id: 'green', color: '#2ecc71' },
-  { id: 'yellow', color: '#f1c40f' },
-  { id: 'purple', color: '#8e44ad' },
-  { id: 'blue', color: '#1A2996' },
-  { id: 'pink', color: '#ff66b3' },
-  { id: 'black', color: '#000000' },
+  { id: 'red', label: '赤', color: '#e74c3c' },
+  { id: 'green', label: '緑', color: '#2ecc71' },
+  { id: 'yellow', label: '黄', color: '#f1c40f' },
+  { id: 'purple', label: '紫', color: '#8e44ad' },
+  { id: 'blue', label: '青', color: '#1A2996' },
+  { id: 'pink', label: 'ピンク', color: '#ff66b3' },
+  { id: 'black', label: '黒', color: '#000000' },
 ];
+
+const COLOR_FAN_OPTIONS = COLOR_OPTIONS.map((option, index, options) => {
+  const step =
+    options.length > 1
+      ? (COLOR_FAN_END_DEG - COLOR_FAN_START_DEG) / (options.length - 1)
+      : 0;
+  const angleDeg = COLOR_FAN_START_DEG + step * index;
+  const angleRad = (angleDeg * Math.PI) / 180;
+
+  return {
+    ...option,
+    offsetX: Math.cos(angleRad) * COLOR_FAN_RADIUS_PX,
+    offsetY: Math.sin(angleRad) * COLOR_FAN_RADIUS_PX,
+  };
+});
 
 const migrateRecords = (parsed) => {
   if (!parsed || typeof parsed !== 'object') return {};
@@ -470,6 +490,11 @@ function App() {
     images: [],
     initialIndex: 0,
   });
+  const [colorPickerState, setColorPickerState] = useState({
+    isOpen: false,
+    previewColor: null,
+    activeColor: null,
+  });
 
   const editorRef = useRef(null);
   const composingRef = useRef(false);
@@ -510,6 +535,14 @@ function App() {
   });
   const lightboxTriggerRef = useRef(null);
   const formImageUrlRef = useRef('');
+  const colorPickerRef = useRef({
+    pointerId: null,
+    timerId: null,
+    originX: 0,
+    originY: 0,
+    isOpen: false,
+    activeColor: null,
+  });
 
   const updateFormImagePreview = useCallback((url) => {
     if (formImageUrlRef.current && formImageUrlRef.current !== url) {
@@ -526,9 +559,135 @@ function App() {
     setIsImageRemoved(false);
   }, [updateFormImagePreview]);
 
+  const closeColorPicker = useCallback(() => {
+    if (colorPickerRef.current.timerId) {
+      clearTimeout(colorPickerRef.current.timerId);
+    }
+    colorPickerRef.current = {
+      pointerId: null,
+      timerId: null,
+      originX: 0,
+      originY: 0,
+      isOpen: false,
+      activeColor: null,
+    };
+    setColorPickerState({
+      isOpen: false,
+      previewColor: null,
+      activeColor: null,
+    });
+  }, []);
+
+  const getColorCandidateAtPoint = useCallback((clientX, clientY) => {
+    const { originX, originY } = colorPickerRef.current;
+    let nearest = null;
+    let nearestDistance = Infinity;
+
+    COLOR_FAN_OPTIONS.forEach((option) => {
+      const dx = clientX - (originX + option.offsetX);
+      const dy = clientY - (originY + option.offsetY);
+      const distance = Math.hypot(dx, dy);
+      if (distance < nearestDistance) {
+        nearest = option;
+        nearestDistance = distance;
+      }
+    });
+
+    return nearestDistance <= COLOR_SELECT_DISTANCE_PX ? nearest : null;
+  }, []);
+
+  const previewColorCandidate = useCallback((event) => {
+    if (!colorPickerRef.current.isOpen) return;
+    const candidate = getColorCandidateAtPoint(event.clientX, event.clientY);
+    const activeColor = candidate?.color || null;
+    colorPickerRef.current.activeColor = activeColor;
+    setColorPickerState((prev) => {
+      if (prev.activeColor === activeColor && prev.previewColor === activeColor) {
+        return prev;
+      }
+      return {
+        isOpen: true,
+        activeColor,
+        previewColor: activeColor,
+      };
+    });
+  }, [getColorCandidateAtPoint]);
+
+  const handleColorPointerDown = useCallback((event) => {
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+
+    if (colorPickerRef.current.timerId) {
+      clearTimeout(colorPickerRef.current.timerId);
+    }
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    colorPickerRef.current = {
+      pointerId: event.pointerId,
+      timerId: null,
+      originX: rect.left + rect.width / 2,
+      originY: rect.top + rect.height / 2,
+      isOpen: false,
+      activeColor: null,
+    };
+
+    colorPickerRef.current.timerId = setTimeout(() => {
+      colorPickerRef.current.timerId = null;
+      colorPickerRef.current.isOpen = true;
+      setColorPickerState({
+        isOpen: true,
+        previewColor: null,
+        activeColor: null,
+      });
+    }, COLOR_LONG_PRESS_MS);
+  }, []);
+
+  const handleColorPointerMove = useCallback((event) => {
+    if (colorPickerRef.current.pointerId !== event.pointerId) return;
+    previewColorCandidate(event);
+  }, [previewColorCandidate]);
+
+  const handleColorPointerEnd = useCallback((event) => {
+    if (colorPickerRef.current.pointerId !== event.pointerId) return;
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+
+    if (colorPickerRef.current.timerId) {
+      clearTimeout(colorPickerRef.current.timerId);
+      colorPickerRef.current.timerId = null;
+    }
+
+    const candidate = colorPickerRef.current.isOpen
+      ? getColorCandidateAtPoint(event.clientX, event.clientY)
+      : null;
+    if (candidate) {
+      setSelectedColor(candidate.color);
+    }
+
+    closeColorPicker();
+  }, [closeColorPicker, getColorCandidateAtPoint]);
+
+  const handleColorPointerCancel = useCallback((event) => {
+    if (colorPickerRef.current.pointerId !== event.pointerId) return;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    closeColorPicker();
+  }, [closeColorPicker]);
+
   useEffect(() => () => {
     if (formImageUrlRef.current) {
       URL.revokeObjectURL(formImageUrlRef.current);
+    }
+  }, []);
+
+  useEffect(() => () => {
+    if (colorPickerRef.current.timerId) {
+      clearTimeout(colorPickerRef.current.timerId);
+      colorPickerRef.current.timerId = null;
     }
   }, []);
 
@@ -1239,6 +1398,7 @@ function App() {
 
   const selectedYmd = formatDateKey(selectedDate);
   const selectedRecords = records[selectedYmd]?.records || [];
+  const displayedColor = colorPickerState.previewColor || selectedColor;
 
   return (
     <div className={styles.appContainer}>
@@ -1359,29 +1519,48 @@ function App() {
 
               <div className={styles.colorSection}>
                 <p className={styles.colorLabel}>カレンダー表示色</p>
-                <div className={styles.colorPalette}>
-                  {COLOR_OPTIONS.map((option) => (
-                    <button
-                      key={option.id}
-                      onClick={() => setSelectedColor(option.color)}
-                      className={`${styles.colorButton} ${
-                        selectedColor === option.color
-                          ? styles.colorButtonSelected
-                          : ''
-                      }`}
-                      style={{
-                        backgroundColor: option.color,
-                        boxShadow:
-                          selectedColor === option.color
-                            ? `0 0 0 2px #fff, 0 0 0 4px ${option.color}`
-                            : undefined,
-                      }}
-                      aria-label={`${option.id}色を選択`}
-                      aria-pressed={selectedColor === option.color}
-                      type="button"
-                    />
-                  ))}
+                <div
+                  className={`${styles.colorPicker} ${
+                    colorPickerState.isOpen ? styles.colorPickerOpen : ''
+                  }`}
+                >
+                  {colorPickerState.isOpen && (
+                    <div
+                      className={styles.colorFan}
+                      aria-hidden="true"
+                    >
+                      {COLOR_FAN_OPTIONS.map((option) => (
+                        <span
+                          key={option.id}
+                          className={`${styles.colorFanDot} ${
+                            colorPickerState.activeColor === option.color
+                              ? styles.colorFanDotActive
+                              : ''
+                          }`}
+                          style={{
+                            backgroundColor: option.color,
+                            transform: `translate(${option.offsetX}px, ${option.offsetY}px)`,
+                          }}
+                        />
+                      ))}
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    className={styles.currentColorButton}
+                    style={{ backgroundColor: displayedColor }}
+                    onPointerDown={handleColorPointerDown}
+                    onPointerMove={handleColorPointerMove}
+                    onPointerUp={handleColorPointerEnd}
+                    onPointerCancel={handleColorPointerCancel}
+                    aria-label="長押ししてカレンダー表示色を選択"
+                    aria-describedby="color-picker-help"
+                  />
                 </div>
+                <p id="color-picker-help" className={styles.colorHint}>
+                  ドットを長押しして、上に出る色へ動かして離す
+                </p>
               </div>
 
               <div className={styles.notesWrapper}>

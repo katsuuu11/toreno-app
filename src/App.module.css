@@ -357,13 +357,13 @@
 .backButton {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
+  justify-content: center;
   color: #6b7280;
   background: transparent;
   border: none;
   cursor: pointer;
-  font-size: 0.875rem;
   padding: 0.625rem;
+  min-width: 44px;
   min-height: 44px;
   transition: color 0.15s ease;
 }
@@ -396,13 +396,13 @@
 }
 .headerSaveButton {
   min-height: 44px;
-  padding: 0.625rem 0.9rem;
+  padding: 0.625rem 1.15rem;
   font-size: 0.875rem;
   font-weight: 600;
   color: #ffffff;
   background-color: #1f2937;
   border: none;
-  border-radius: 0.5rem;
+  border-radius: 9999px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;

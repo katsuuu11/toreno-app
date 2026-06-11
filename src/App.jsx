@@ -94,11 +94,11 @@ const TAP_MOVE_THRESHOLD_PX = 8;
 const DATE_DOUBLE_TAP_THRESHOLD_MS = 300;
 const DATE_TAP_MOVE_THRESHOLD_PX = 10;
 const COLOR_LONG_PRESS_MS = 360;
-const COLOR_FAN_RADIUS_PX = 72;
+const COLOR_FAN_RADIUS_PX = 76;
 const COLOR_SELECT_DISTANCE_PX = 34;
 const COLOR_MIN_SELECT_DISTANCE_PX = 24;
-const COLOR_FAN_START_DEG = 210;
-const COLOR_FAN_END_DEG = 330;
+const COLOR_FAN_START_DEG = 135;
+const COLOR_FAN_END_DEG = 225;
 
 const COLOR_OPTIONS = [
   { id: 'red', label: '赤', color: '#e74c3c' },
@@ -110,20 +110,24 @@ const COLOR_OPTIONS = [
   { id: 'black', label: '黒', color: '#000000' },
 ];
 
-const COLOR_FAN_OPTIONS = COLOR_OPTIONS.map((option, index, options) => {
-  const step =
-    options.length > 1
-      ? (COLOR_FAN_END_DEG - COLOR_FAN_START_DEG) / (options.length - 1)
-      : 0;
-  const angleDeg = COLOR_FAN_START_DEG + step * index;
-  const angleRad = (angleDeg * Math.PI) / 180;
+const getColorFanOptions = (currentColor) => {
+  const visibleColors = COLOR_OPTIONS.filter((option) => option.color !== currentColor);
 
-  return {
-    ...option,
-    offsetX: Math.cos(angleRad) * COLOR_FAN_RADIUS_PX,
-    offsetY: Math.sin(angleRad) * COLOR_FAN_RADIUS_PX,
-  };
-});
+  return visibleColors.map((option, index, options) => {
+    const step =
+      options.length > 1
+        ? (COLOR_FAN_END_DEG - COLOR_FAN_START_DEG) / (options.length - 1)
+        : 0;
+    const angleDeg = COLOR_FAN_START_DEG + step * index;
+    const angleRad = (angleDeg * Math.PI) / 180;
+
+    return {
+      ...option,
+      offsetX: Math.cos(angleRad) * COLOR_FAN_RADIUS_PX,
+      offsetY: Math.abs(Math.sin(angleRad)) * COLOR_FAN_RADIUS_PX,
+    };
+  });
+};
 
 const migrateRecords = (parsed) => {
   if (!parsed || typeof parsed !== 'object') return {};
@@ -596,7 +600,7 @@ function App() {
     let nearest = null;
     let nearestDistance = Infinity;
 
-    COLOR_FAN_OPTIONS.forEach((option) => {
+    getColorFanOptions(selectedColor).forEach((option) => {
       const dx = clientX - (originX + option.offsetX);
       const dy = clientY - (originY + option.offsetY);
       const distance = Math.hypot(dx, dy);
@@ -607,7 +611,7 @@ function App() {
     });
 
     return nearestDistance <= COLOR_SELECT_DISTANCE_PX ? nearest : null;
-  }, []);
+  }, [selectedColor]);
 
   const previewColorCandidate = useCallback((event) => {
     if (!colorPickerRef.current.isOpen) return;
@@ -1418,6 +1422,10 @@ function App() {
   const selectedYmd = formatDateKey(selectedDate);
   const selectedRecords = records[selectedYmd]?.records || [];
   const displayedColor = selectedColor;
+  const visibleColorOptions = useMemo(
+    () => getColorFanOptions(displayedColor),
+    [displayedColor],
+  );
 
   return (
     <div className={styles.appContainer}>
@@ -1525,17 +1533,17 @@ function App() {
             </header>
 
             <main className={styles.main}>
-              <div>
-                <input
-                  type="text"
-                  value={inputParts}
-                  onChange={(e) => setInputParts(e.target.value)}
-                  placeholder="部位（胸／背中／脚 など自由入力）"
-                  className={styles.bodyPartInput}
-                />
-              </div>
+              <div className={styles.partColorRow}>
+                <div className={styles.partInputWrap}>
+                  <input
+                    type="text"
+                    value={inputParts}
+                    onChange={(e) => setInputParts(e.target.value)}
+                    placeholder="部位（胸／背中／脚 など自由入力）"
+                    className={styles.bodyPartInput}
+                  />
+                </div>
 
-              <div className={styles.colorSection}>
                 <div
                   className={`${styles.colorPicker} ${
                     colorPickerState.isOpen ? styles.colorPickerOpen : ''
@@ -1547,20 +1555,24 @@ function App() {
                       className={styles.colorFan}
                       aria-hidden="true"
                     >
-                      {COLOR_FAN_OPTIONS.map((option) => (
+                      {visibleColorOptions.map((option) => (
                         <span
                           key={option.id}
-                          className={`${styles.colorFanDot} ${
+                          className={`${styles.colorOptionButton} ${
                             colorPickerState.activeColor === option.color
-                              ? styles.colorFanDotActive
+                              ? styles.colorOptionButtonActive
                               : ''
                           }`}
                           style={{
                             '--color-dot-x': `${option.offsetX}px`,
                             '--color-dot-y': `${option.offsetY}px`,
-                            backgroundColor: option.color,
                           }}
-                        />
+                        >
+                          <span
+                            className={styles.colorOptionDot}
+                            style={{ backgroundColor: option.color }}
+                          />
+                        </span>
                       ))}
                     </div>
                   )}
@@ -1568,14 +1580,18 @@ function App() {
                   <button
                     type="button"
                     className={styles.currentColorButton}
-                    style={{ backgroundColor: displayedColor }}
                     onPointerDown={handleColorPointerDown}
                     onPointerMove={handleColorPointerMove}
                     onPointerUp={handleColorPointerEnd}
                     onPointerCancel={handleColorPointerCancel}
                     onContextMenu={(event) => event.preventDefault()}
                     aria-label="長押しして色メニューを開く"
-                  />
+                  >
+                    <span
+                      className={styles.currentColorDot}
+                      style={{ backgroundColor: displayedColor }}
+                    />
+                  </button>
                 </div>
               </div>
 

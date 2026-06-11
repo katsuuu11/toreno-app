@@ -124,7 +124,7 @@ const getColorFanOptions = (currentColor) => {
     return {
       ...option,
       offsetX: Math.cos(angleRad) * COLOR_FAN_RADIUS_PX,
-      offsetY: Math.abs(Math.sin(angleRad)) * COLOR_FAN_RADIUS_PX,
+      offsetY: Math.sin(angleRad) * COLOR_FAN_RADIUS_PX,
     };
   });
 };

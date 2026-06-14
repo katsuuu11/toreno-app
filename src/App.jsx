@@ -129,6 +129,21 @@ const getColorFanOptions = (currentColor) => {
   });
 };
 
+const stripEditBufferStartTimes = (buffers) => {
+  if (!buffers || typeof buffers !== 'object') return {};
+
+  return Object.fromEntries(
+    Object.entries(buffers).map(([ymd, buffer]) => {
+      if (!buffer || typeof buffer !== 'object' || Array.isArray(buffer)) {
+        return [ymd, buffer];
+      }
+
+      const { startTime: _startTime, ...rest } = buffer;
+      return [ymd, rest];
+    })
+  );
+};
+
 const migrateRecords = (parsed) => {
   if (!parsed || typeof parsed !== 'object') return {};
   const migrated = {};
@@ -992,7 +1007,7 @@ function App() {
     setInputParts(buffer.part || '');
     setNoteHtml(buffer.note || '');
     setSelectedColor(buffer.color || '#e74c3c');
-    setStartTime(buffer.startTime || getNowHHmm());
+    setStartTime('');
     clearFormImageState();
     setMode('form');
   };
@@ -1129,11 +1144,10 @@ function App() {
   const handleSave = async () => {
     if (!editingDate) return;
     const ymd = formatDateKey(editingDate);
-    const bufferStartTime = editBuffers[ymd]?.startTime;
     const existingStartTime =
-      editingIndex !== null ? records[ymd]?.records?.[editingIndex]?.startTime : null;
+      editingIndex !== null ? records[ymd]?.records?.[editingIndex]?.startTime : '';
     const resolvedStartTime =
-      bufferStartTime || existingStartTime || startTime || getNowHHmm();
+      editingIndex !== null ? existingStartTime || startTime || '' : getNowHHmm();
     const cleanHtml =
       sanitizeHtml(noteHtml || '').trim() || '<p><br></p>';
     const noteText = cleanHtml
@@ -1217,10 +1231,9 @@ function App() {
         part: inputParts,
         note: noteHtml,
         color: selectedColor,
-        startTime,
       },
     }));
-  }, [inputParts, noteHtml, selectedColor, startTime, editingDate]);
+  }, [inputParts, noteHtml, selectedColor, editingDate]);
 
   useEffect(() => {
     if (!isDbReady) return;
@@ -1267,7 +1280,7 @@ function App() {
         }
         if (!isMounted) return;
         setRecords(imageMigratedRecords);
-        setEditBuffers(loadedEditBuffers);
+        setEditBuffers(stripEditBufferStartTimes(loadedEditBuffers));
         setIsDbReady(true);
       } catch (error) {
         console.warn('Failed to initialize local DB', error);

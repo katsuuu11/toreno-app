@@ -1,5 +1,12 @@
-const CACHE_NAME = 'treno-pwa-v1';
-const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest'];
+const CACHE_NAME = 'treno-pwa-v2';
+const APP_SHELL = [
+  '/',
+  '/index.html',
+  '/manifest.webmanifest',
+  '/icons/apple-touch-icon.png',
+  '/icons/treno-icon-192.png',
+  '/icons/treno-icon-512.png',
+];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

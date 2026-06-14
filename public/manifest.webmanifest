@@ -1,0 +1,19 @@
+{
+  "name": "TRENO",
+  "short_name": "TRENO",
+  "description": "日付ごとにトレーニング記録を残せるアプリ",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#1A2996",
+  "background_color": "#ffffff",
+  "icons": [
+    {
+      "src": "/icons/treno-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

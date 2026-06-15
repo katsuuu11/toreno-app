@@ -862,3 +862,104 @@
   height: auto;
   display: block;
 }
+
+.calendarHeader {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.settingsButton {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 9999px;
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.settingsButton:hover,
+.settingsButton:focus-visible {
+  color: #1f2937;
+  background-color: #e5e7eb;
+}
+
+.optionsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.optionsCloseButton {
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 9999px;
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.optionsCloseButton:hover,
+.optionsCloseButton:focus-visible {
+  color: #1f2937;
+  background-color: #f3f4f6;
+}
+
+.dataManagementSection {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.dataManagementTitle {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.dataManagementDescription {
+  margin: 0.5rem 0 0;
+  color: #4b5563;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.dataManagementActions {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.dataManagementButton {
+  width: 100%;
+  border: none;
+  border-radius: 0.75rem;
+  background: #1f2937;
+  color: #fff;
+  cursor: pointer;
+  font-weight: 700;
+  padding: 0.75rem 1rem;
+}
+
+.dataManagementButton:hover,
+.dataManagementButton:focus-visible {
+  background: #111827;
+}
+
+.hiddenFileInput {
+  display: none;
+}

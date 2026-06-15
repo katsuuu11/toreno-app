@@ -4,6 +4,7 @@ import styles from './App.module.css';
 import {
   deleteImageBlob,
   initializeLocalDb,
+  createBackupData,
   loadEditBuffers,
   loadImageBlob,
   loadRecords,
@@ -11,6 +12,7 @@ import {
   migrateRecordImagesToBlobs,
   saveEditBuffers,
   saveImageBlob,
+  restoreBackupData,
   saveRecords,
 } from './services/localDb';
 
@@ -215,6 +217,22 @@ const IconEdit = () => (
   >
     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+  </svg>
+);
+
+const IconSettings = () => (
+  <svg
+    width="22"
+    height="22"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <circle cx="12" cy="12" r="3" />
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 8a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 8.92 3a1.65 1.65 0 0 0 1-1.51V1a2 2 0 1 1 4 0v.09A1.65 1.65 0 0 0 15 2.6a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 8c.14.31.22.65.22 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
   </svg>
 );
 
@@ -505,6 +523,7 @@ function App() {
   const [dragOffsetX, setDragOffsetX] = useState(0);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const [lightboxState, setLightboxState] = useState({
     isOpen: false,
     images: [],
@@ -555,6 +574,7 @@ function App() {
   });
   const lightboxTriggerRef = useRef(null);
   const formImageUrlRef = useRef('');
+  const importFileInputRef = useRef(null);
   const colorPickerRef = useRef({
     pointerId: null,
     timerId: null,
@@ -747,6 +767,53 @@ function App() {
   const closeDeleteDialog = () => {
     setIsDeleteDialogOpen(false);
     setDeleteTarget(null);
+  };
+
+  const handleExportData = async () => {
+    try {
+      const backupData = await createBackupData();
+      const blob = new Blob([JSON.stringify(backupData, null, 2)], {
+        type: 'application/json',
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `treno-backup-${formatDateKey(new Date())}.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.warn('Failed to export backup data', error);
+      alert('データの書き出しに失敗しました。');
+    }
+  };
+
+  const handleImportData = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    const ok = window.confirm(
+      '選択したデータを読み込みます。現在のデータは上書きされます。よろしいですか？'
+    );
+    if (!ok) return;
+
+    try {
+      const text = await file.text();
+      const backupData = JSON.parse(text);
+      if (backupData?.treno_records_v1 !== undefined) {
+        const { records: migratedRecords } = await migrateRecordImagesToBlobs(
+          migrateRecords(backupData.treno_records_v1)
+        );
+        backupData.treno_records_v1 = migratedRecords;
+      }
+      await restoreBackupData(backupData);
+      window.location.reload();
+    } catch (error) {
+      console.warn('Failed to import backup data', error);
+      alert('データの読み込みに失敗しました。既存データは変更されていません。');
+    }
   };
 
   const openLightbox = useCallback((targetImages, index, triggerElement) => {
@@ -1444,7 +1511,19 @@ function App() {
     <div className={styles.appContainer}>
       <div className={styles.wrapper}>
         {/* ヘッダー */}
-        {mode === 'calendar' && <h1 className={styles.appHeader}>TRENO</h1>}
+        {mode === 'calendar' && (
+          <header className={styles.calendarHeader}>
+            <h1 className={styles.appHeader}>TRENO</h1>
+            <button
+              type="button"
+              className={styles.settingsButton}
+              aria-label="オプション設定を開く"
+              onClick={() => setIsOptionsOpen(true)}
+            >
+              <IconSettings />
+            </button>
+          </header>
+        )}
 
         {/* メインコンテンツ */}
         {mode === 'calendar' && (
@@ -1688,6 +1767,68 @@ function App() {
           initialIndex={lightboxState.initialIndex}
           onClose={closeLightbox}
         />
+
+
+
+        {isOptionsOpen && (
+          <div
+            className={styles.dialogOverlay}
+            role="presentation"
+            onClick={() => setIsOptionsOpen(false)}
+          >
+            <div
+              className={styles.dialog}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="options-dialog-title"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className={styles.optionsHeader}>
+                <h2 id="options-dialog-title" className={styles.dialogTitle}>
+                  オプション設定
+                </h2>
+                <button
+                  type="button"
+                  className={styles.optionsCloseButton}
+                  onClick={() => setIsOptionsOpen(false)}
+                  aria-label="オプション設定を閉じる"
+                >
+                  ×
+                </button>
+              </div>
+
+              <section className={styles.dataManagementSection}>
+                <h3 className={styles.dataManagementTitle}>データ管理</h3>
+                <p className={styles.dataManagementDescription}>
+                  記録データのバックアップを作成したり、保存済みのJSONファイルから復元できます。
+                </p>
+                <div className={styles.dataManagementActions}>
+                  <button
+                    type="button"
+                    className={styles.dataManagementButton}
+                    onClick={handleExportData}
+                  >
+                    データを書き出す
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.dataManagementButton}
+                    onClick={() => importFileInputRef.current?.click()}
+                  >
+                    データを読み込む
+                  </button>
+                  <input
+                    ref={importFileInputRef}
+                    type="file"
+                    accept="application/json,.json"
+                    className={styles.hiddenFileInput}
+                    onChange={handleImportData}
+                  />
+                </div>
+              </section>
+            </div>
+          </div>
+        )}
 
         {isDeleteDialogOpen && deleteTarget && (
           <div

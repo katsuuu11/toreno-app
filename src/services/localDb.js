@@ -167,9 +167,6 @@ export const migrateRecordImagesToBlobs = async (records) => {
 };
 
 export const migrateFromLocalStorageIfNeeded = async ({ migrateRecords }) => {
-  const migrated = await getState(STORAGE_KEY_MIGRATED, false);
-  if (migrated) return;
-
   const rawRecords = localStorage.getItem(STORAGE_KEY_RECORDS);
   const legacyRawRecords = localStorage.getItem('records');
   const rawEditBuffers =
@@ -181,12 +178,33 @@ export const migrateFromLocalStorageIfNeeded = async ({ migrateRecords }) => {
     migrateRecords(parseJsonSafely(legacyRawRecords, null))
   );
   const editBuffersCandidate = normalizeObject(parseJsonSafely(rawEditBuffers, {}));
-  const { records: migratedRecords } = await migrateRecordImagesToBlobs(
-    recordsCandidate
+  const existingRecords = normalizeObject(
+    await getState(STORAGE_KEY_RECORDS, undefined)
   );
+  const existingEditBuffers = normalizeObject(
+    await getState(STORAGE_KEY_EDITBUFFERS, undefined)
+  );
+  const shouldMigrateRecords =
+    Object.keys(recordsCandidate).length > 0 &&
+    Object.keys(existingRecords).length === 0;
+  const shouldMigrateEditBuffers =
+    Object.keys(editBuffersCandidate).length > 0 &&
+    Object.keys(existingEditBuffers).length === 0;
+  const migrated = await getState(STORAGE_KEY_MIGRATED, false);
 
-  await setState(STORAGE_KEY_RECORDS, migratedRecords);
-  await setState(STORAGE_KEY_EDITBUFFERS, editBuffersCandidate);
+  if (migrated && !shouldMigrateRecords && !shouldMigrateEditBuffers) return;
+
+  if (shouldMigrateRecords) {
+    const { records: migratedRecords } = await migrateRecordImagesToBlobs(
+      recordsCandidate
+    );
+    await setState(STORAGE_KEY_RECORDS, migratedRecords);
+  }
+
+  if (shouldMigrateEditBuffers) {
+    await setState(STORAGE_KEY_EDITBUFFERS, editBuffersCandidate);
+  }
+
   await setState(STORAGE_KEY_MIGRATED, true);
 };
 

@@ -12,6 +12,15 @@ dist
 dist-ssr
 *.local
 
+# Capacitor / iOS
+ios/App/Pods/
+ios/App/build/
+ios/App/DerivedData/
+ios/App/App/public/
+ios/App/*.xcworkspace/xcuserdata/
+ios/App/*.xcodeproj/xcuserdata/
+ios/App/*.xcodeproj/project.xcworkspace/xcuserdata/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

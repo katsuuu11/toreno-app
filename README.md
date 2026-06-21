@@ -23,11 +23,23 @@ TRENO は、日付ごとにトレーニング記録を残すための React + Vi
 
 ## PWA対応
 
-- `manifest.webmanifest` でアプリ名・テーマカラー・ホーム画面用SVGアイコンを定義
+- `manifest.webmanifest` でアプリ名・テーマカラー・ホーム画面用PNGアイコンを定義
 - iPhone向けの `apple-touch-icon` とホーム画面起動用メタタグを設定
 - Service Workerでアプリ本体をキャッシュし、再訪問時や一部オフライン時にも起動しやすくする
+- iOSネイティブ実行時（Capacitor）は、PWA向けのService Worker登録をスキップする
 
 > 記録データは端末のブラウザ内（IndexedDB）に保存されます。機種変更・ブラウザデータ削除・ブラウザ変更時にはデータが引き継がれない場合があります。
+
+## リポジトリ構成
+
+PWA版とiOS版は同じGitHubリポジトリ内で管理し、React本体は `src/` を共通実装として使います。
+
+- `src/`: PWA版・iOS版で共通のReactアプリ本体
+- `public/`: PWA用の `manifest.webmanifest`、`sw.js`、ホーム画面用アイコン
+- `ios/`: Capacitorで追加するiOS/Xcodeプロジェクト
+- `capacitor.config.js`: Capacitor用のアプリID・アプリ名・Webビルド出力先
+
+PWA用アイコンは `public/icons/` で管理し、App Store提出用のiOSアイコンやスプラッシュ画像は `ios/App/App/Assets.xcassets` 側で別管理します。
 
 ## セットアップ
 
@@ -52,6 +64,29 @@ npm run build
 ```bash
 npm run lint
 ```
+
+## iOS版の開発準備
+
+このリポジトリには、Capacitor導入前の設定雛形として `capacitor.config.js` を用意しています。
+
+Capacitorパッケージを取得できる環境で、以下を実行してください。
+
+```bash
+npm install @capacitor/core @capacitor/cli @capacitor/ios
+npm run build
+npx cap add ios
+npx cap sync ios
+npx cap open ios
+```
+
+以降、Web/PWA側を変更した後にiOSへ反映する場合は、以下を実行します。
+
+```bash
+npm run build
+npx cap sync ios
+```
+
+`ios/App/Pods/` や `ios/App/build/` などの生成物はGit管理しません。必要なXcodeプロジェクトファイルのみをコミットしてください。
 
 ## 手動テスト（サジェスト辞書）
 

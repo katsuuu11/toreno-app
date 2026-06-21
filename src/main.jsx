@@ -2,7 +2,12 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.jsx';
 
-if ('serviceWorker' in navigator) {
+const isCapacitorNativeRuntime = () =>
+  window.Capacitor?.isNativePlatform?.() === true ||
+  window.location.protocol === 'capacitor:' ||
+  window.location.protocol === 'ionic:';
+
+if (!isCapacitorNativeRuntime() && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js');
   });

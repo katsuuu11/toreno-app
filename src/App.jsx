@@ -1719,6 +1719,11 @@ function App() {
                 <div
                   ref={editorRef}
                   contentEditable
+                  lang="ja"
+                  inputMode="text"
+                  autoCorrect="off"
+                  autoCapitalize="none"
+                  spellCheck={false}
                   suppressContentEditableWarning
                   onCompositionStart={() => {
                     composingRef.current = true;

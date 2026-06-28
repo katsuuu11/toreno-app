@@ -11,6 +11,14 @@
   margin: 0;
 }
 
+/* iOS WebView のフォーム要素で日本語フォントが外れないようにする */
+:global(button),
+:global(input),
+:global(textarea),
+:global(select) {
+  font: inherit;
+}
+
 :global(:where(h1, h2, h3, h4, h5, h6, p, figure, blockquote, dl, dd)) {
   margin: 0;
   margin-block: 0;
@@ -333,6 +341,7 @@
 
 /* フォーム */
 .container {
+  font-family: 'Noto Sans JP', sans-serif;
   min-height: 100vh;
   min-height: 100dvh;
   min-height: 100svh;
@@ -408,6 +417,7 @@
   background-color: #f3f4f6;
 }
 .headerSaveButton {
+  font-family: inherit;
   min-height: 44px;
   padding: 0.625rem 1.15rem;
   font-size: 0.875rem;
@@ -435,6 +445,7 @@
 }
 
 .bodyPartInput {
+  font-family: inherit;
   width: 100%;
   padding: 0.75rem;
   font-size: 1rem;
@@ -959,6 +970,7 @@
 }
 
 .dataManagementButton {
+  font-family: inherit;
   width: 100%;
   border: none;
   border-radius: 0.75rem;

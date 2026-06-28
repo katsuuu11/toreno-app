@@ -821,7 +821,7 @@
 /* フローティングボタン */
 .fab {
   position: fixed;
-  bottom: 1.5rem;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 1.5rem);
   right: 1.5rem;
   width: 56px;
   height: 56px;
@@ -878,6 +878,7 @@
 
 .calendarHeader {
   position: relative;
+  padding-top: env(safe-area-inset-top, 0px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -885,7 +886,7 @@
 
 .settingsButton {
   position: absolute;
-  top: 0.75rem;
+  top: calc(env(safe-area-inset-top, 0px) + 0.75rem);
   right: 0.75rem;
   width: 44px;
   height: 44px;

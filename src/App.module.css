@@ -362,12 +362,12 @@
 
 .header {
   position: fixed;
-  top: env(safe-area-inset-top, 0px);
+  top: 0;
   left: 50%;
   transform: translateX(-50%);
   width: min(28rem, 100%);
   z-index: 1200;
-  padding: 0.5rem 1rem;
+  padding: calc(env(safe-area-inset-top, 0px) + 0.5rem) 1rem 0.5rem;
   background: rgba(255, 255, 255, 0.96);
   backdrop-filter: blur(6px);
   border-bottom: 1px solid #e5e7eb;
@@ -448,7 +448,7 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: calc(env(safe-area-inset-top) + 5.25rem) 1.5rem 1.5rem;
+  padding: calc(env(safe-area-inset-top, 0px) + 5.25rem) 1.5rem 1.5rem;
   gap: 1.5rem;
 }
 

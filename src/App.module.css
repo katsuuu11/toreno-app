@@ -362,12 +362,12 @@
 
 .header {
   position: fixed;
-  top: 0;
+  top: env(safe-area-inset-top, 0px);
   left: 50%;
   transform: translateX(-50%);
   width: min(28rem, 100%);
   z-index: 1200;
-  padding: calc(env(safe-area-inset-top) + 0.5rem) 1rem 0.5rem;
+  padding: 0.5rem 1rem;
   background: rgba(255, 255, 255, 0.96);
   backdrop-filter: blur(6px);
   border-bottom: 1px solid #e5e7eb;

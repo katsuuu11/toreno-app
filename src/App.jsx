@@ -39,6 +39,12 @@ const ALLOWED_TAGS = [
 ];
 const ALLOWED_ATTR = ['style', 'src', 'alt'];
 
+const UI_TEXT = Object.freeze({
+  saveDone: '\u5b8c\u4e86',
+  bodyPartPlaceholder:
+    '\u90e8\u4f4d\uff08\u80f8\uff0f\u80cc\u4e2d\uff0f\u811a \u306a\u3069\u81ea\u7531\u5165\u529b\uff09',
+});
+
 const sanitizeHtml = (html) =>
   DOMPurify.sanitize(html, { ALLOWED_TAGS, ALLOWED_ATTR });
 
@@ -1636,12 +1642,12 @@ function App() {
 
                 <button
                   onClick={handleSave}
-                  title="完了"
+                  title={UI_TEXT.saveDone}
                   className={styles.headerSaveButton}
                   type="button"
                 >
                   <IconCheck />
-                  完了
+                  {UI_TEXT.saveDone}
                 </button>
               </div>
             </header>
@@ -1653,7 +1659,7 @@ function App() {
                     type="text"
                     value={inputParts}
                     onChange={(e) => setInputParts(e.target.value)}
-                    placeholder="部位（胸／背中／脚 など自由入力）"
+                    placeholder={UI_TEXT.bodyPartPlaceholder}
                     className={styles.bodyPartInput}
                   />
                 </div>

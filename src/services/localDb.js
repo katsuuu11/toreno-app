@@ -13,6 +13,8 @@ const BACKUP_STORAGE_KEYS = [
 ];
 const STORAGE_KEY_MIGRATED = 'treno_db_migrated_v1';
 const BACKUP_IMAGES_KEY = '__treno_images_v1';
+const BACKUP_APP_NAME = 'TRENO';
+const CURRENT_BACKUP_VERSION = 1;
 
 let dbPromise;
 
@@ -280,6 +282,34 @@ const restoreBackupImages = async (backupImages) => {
   );
 };
 
+export const getBackupPayload = (backupData) => {
+  if (!backupData || typeof backupData !== 'object' || Array.isArray(backupData)) {
+    throw new Error('Invalid backup data');
+  }
+
+  if ('backupVersion' in backupData || 'payload' in backupData || 'app' in backupData) {
+    if (backupData.app !== BACKUP_APP_NAME) {
+      throw new Error('Invalid backup app');
+    }
+    if (typeof backupData.backupVersion !== 'number') {
+      throw new Error('Invalid backup version');
+    }
+    if (backupData.backupVersion > CURRENT_BACKUP_VERSION) {
+      throw new Error('Unsupported backup version');
+    }
+    if (
+      !backupData.payload ||
+      typeof backupData.payload !== 'object' ||
+      Array.isArray(backupData.payload)
+    ) {
+      throw new Error('Invalid backup payload');
+    }
+    return backupData.payload;
+  }
+
+  return backupData;
+};
+
 export const createBackupData = async () => {
   const entries = await Promise.all(
     BACKUP_STORAGE_KEYS.map(async (key) => {
@@ -288,33 +318,37 @@ export const createBackupData = async () => {
       return [key, chooseBackupValue(indexedDbValue, localStorageValue)];
     })
   );
-  const backupData = Object.fromEntries(entries);
+  const payload = Object.fromEntries(entries);
 
-  backupData[BACKUP_IMAGES_KEY] = await loadBackupImages(
-    backupData[STORAGE_KEY_RECORDS]
+  payload[BACKUP_IMAGES_KEY] = await loadBackupImages(
+    payload[STORAGE_KEY_RECORDS]
   );
 
-  return backupData;
+  return {
+    app: BACKUP_APP_NAME,
+    backupVersion: CURRENT_BACKUP_VERSION,
+    createdAt: new Date().toISOString(),
+    payload,
+  };
 };
 
 export const restoreBackupData = async (backupData) => {
-  if (!backupData || typeof backupData !== 'object' || Array.isArray(backupData)) {
-    throw new Error('Invalid backup data');
-  }
-  if (!BACKUP_STORAGE_KEYS.some((key) => key in backupData)) {
+  const payload = getBackupPayload(backupData);
+
+  if (!BACKUP_STORAGE_KEYS.some((key) => key in payload)) {
     throw new Error('Invalid backup data');
   }
   if (
-    backupData[STORAGE_KEY_RECORDS] !== undefined &&
-    backupData[STORAGE_KEY_RECORDS] !== null &&
-    typeof backupData[STORAGE_KEY_RECORDS] !== 'object'
+    payload[STORAGE_KEY_RECORDS] !== undefined &&
+    payload[STORAGE_KEY_RECORDS] !== null &&
+    typeof payload[STORAGE_KEY_RECORDS] !== 'object'
   ) {
     throw new Error('Invalid records data');
   }
   if (
-    backupData[STORAGE_KEY_EDITBUFFERS] !== undefined &&
-    backupData[STORAGE_KEY_EDITBUFFERS] !== null &&
-    typeof backupData[STORAGE_KEY_EDITBUFFERS] !== 'object'
+    payload[STORAGE_KEY_EDITBUFFERS] !== undefined &&
+    payload[STORAGE_KEY_EDITBUFFERS] !== null &&
+    typeof payload[STORAGE_KEY_EDITBUFFERS] !== 'object'
   ) {
     throw new Error('Invalid edit buffer data');
   }
@@ -330,7 +364,7 @@ export const restoreBackupData = async (backupData) => {
   const nextValues = Object.fromEntries(
     BACKUP_STORAGE_KEYS.map((key) => [
       key,
-      key in backupData ? backupData[key] ?? null : previousIndexedDbValues[key],
+      key in payload ? payload[key] ?? null : previousIndexedDbValues[key],
     ])
   );
   const serializedValues = Object.fromEntries(
@@ -338,7 +372,7 @@ export const restoreBackupData = async (backupData) => {
   );
 
   try {
-    await restoreBackupImages(backupData[BACKUP_IMAGES_KEY]);
+    await restoreBackupImages(payload[BACKUP_IMAGES_KEY]);
     await Promise.all(
       BACKUP_STORAGE_KEYS.map((key) => setState(key, nextValues[key]))
     );

@@ -6,6 +6,7 @@ TRENO は、日付ごとにトレーニング記録を残すための React + Vi
 - 部位・メモ（リッチテキスト）・画像を保存
 - 記録はブラウザのローカルDB（IndexedDB）に保存（初回起動時に `localStorage` から移行）
 - PWA対応により、スマホのホーム画面からアプリのように起動可能
+- Capacitor対応により、iOSアプリとしてXcodeでビルド可能
 
 ## スマホで使う
 
@@ -36,8 +37,9 @@ PWA版とiOS版は同じGitHubリポジトリ内で管理し、React本体は `s
 
 - `src/`: PWA版・iOS版で共通のReactアプリ本体
 - `public/`: PWA用の `manifest.webmanifest`、`sw.js`、ホーム画面用アイコン
-- `ios/`: Capacitorで追加するiOS/Xcodeプロジェクト
-- `capacitor.config.js`: Capacitor用のアプリID・アプリ名・Webビルド出力先
+- `ios/`: Capacitorで生成したiOS/Xcodeプロジェクト
+- `capacitor.config.json`: Capacitor用のアプリID・アプリ名・Webビルド出力先
+- `docs/`: App Store提出準備用メモ
 
 PWA用アイコンは `public/icons/` で管理し、App Store提出用のiOSアイコンやスプラッシュ画像は `ios/App/App/Assets.xcassets` 側で別管理します。
 
@@ -65,26 +67,54 @@ npm run build
 npm run lint
 ```
 
-## iOS版の開発準備
+## iOS版の開発
 
-このリポジトリには、Capacitor導入前の設定雛形として `capacitor.config.js` を用意しています。
+このリポジトリには `capacitor.config.json` と `ios/` が含まれています。
 
-Capacitorパッケージを取得できる環境で、以下を実行してください。
+Web/PWA側を変更した後にiOSへ反映する場合は、以下を実行します。
 
 ```bash
-npm install @capacitor/core @capacitor/cli @capacitor/ios
 npm run build
-npx cap add ios
 npx cap sync ios
 npx cap open ios
 ```
 
-以降、Web/PWA側を変更した後にiOSへ反映する場合は、以下を実行します。
+Xcodeを開いたら、まずシミュレーターで起動確認します。
 
-```bash
-npm run build
-npx cap sync ios
+```txt
+Product > Destination > iPhone Simulator
+↓
+Run
 ```
+
+## App Store提出前の流れ
+
+Apple Developer Programが有効化されたら、Xcode側で `Personal Team` ではなく有料Developer ProgramのTeamを選択します。
+
+```txt
+TARGETS > App > Signing & Capabilities > Team
+```
+
+その後、以下の順番で確認します。
+
+```txt
+1. npm run build
+2. npx cap sync ios
+3. XcodeでArchive
+4. Validate App
+5. Distribute App
+```
+
+現在の確認状況は以下です。
+
+- Xcode 26.3でArchive作成済み
+- iPhone Simulatorで起動確認済み
+- iOS 26.5.1実機確認は、Xcode 26.3のDevice Support範囲外の可能性があるため未完了
+- App Store提出にはApple Developer Programの有効化とApp Store Connect登録が必要
+
+詳しい提出準備は `docs/APP_STORE_RELEASE_CHECKLIST.md` を参照してください。
+
+## Git管理しないもの
 
 `ios/App/Pods/` や `ios/App/build/` などの生成物はGit管理しません。必要なXcodeプロジェクトファイルのみをコミットしてください。
 

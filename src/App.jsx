@@ -5,6 +5,7 @@ import {
   deleteImageBlob,
   initializeLocalDb,
   createBackupData,
+  getBackupPayload,
   loadEditBuffers,
   loadImageBlob,
   loadRecords,
@@ -145,6 +146,16 @@ const stripEditBufferStartTimes = (buffers) => {
     })
   );
 };
+
+
+const countRecords = (recordsData) =>
+  Object.values(recordsData && typeof recordsData === 'object' ? recordsData : {}).reduce(
+    (total, value) => {
+      const dayRecords = Array.isArray(value) ? value : value?.records;
+      return total + (Array.isArray(dayRecords) ? dayRecords.length : 0);
+    },
+    0
+  );
 
 const migrateRecords = (parsed) => {
   if (!parsed || typeof parsed !== 'object') return {};
@@ -787,9 +798,10 @@ function App() {
       link.click();
       link.remove();
       URL.revokeObjectURL(url);
+      alert('バックアップファイルを作成しました。安全な場所に保存してください。');
     } catch (error) {
-      console.warn('Failed to export backup data', error);
-      alert('データの書き出しに失敗しました。');
+      console.warn('Failed to create backup data', error);
+      alert('バックアップを作成できませんでした。');
     }
   };
 
@@ -798,25 +810,31 @@ function App() {
     event.target.value = '';
     if (!file) return;
 
-    const ok = window.confirm(
-      '選択したデータを読み込みます。現在のデータは上書きされます。よろしいですか？'
-    );
-    if (!ok) return;
-
     try {
       const text = await file.text();
       const backupData = JSON.parse(text);
-      if (backupData?.treno_records_v1 !== undefined) {
-        const { records: migratedRecords } = await migrateRecordImagesToBlobs(
-          migrateRecords(backupData.treno_records_v1)
-        );
-        backupData.treno_records_v1 = migratedRecords;
-      }
+      const payload = getBackupPayload(backupData);
+      const backupRecords = migrateRecords(payload.treno_records_v1);
+
+      const ok = window.confirm(
+        [
+          `現在の記録件数: ${countRecords(records)}件`,
+          `復元後の記録件数: ${countRecords(backupRecords)}件`,
+          '現在のデータは上書きされます。',
+          'バックアップから復元しますか？',
+        ].join('\n')
+      );
+      if (!ok) return;
+
+      const { records: migratedRecords } = await migrateRecordImagesToBlobs(
+        backupRecords
+      );
+      payload.treno_records_v1 = migratedRecords;
       await restoreBackupData(backupData);
       window.location.reload();
     } catch (error) {
-      console.warn('Failed to import backup data', error);
-      alert('データの読み込みに失敗しました。既存データは変更されていません。');
+      console.warn('Failed to restore backup data', error);
+      alert('バックアップを復元できませんでした。現在のデータは変更されていません。');
     }
   };
 
@@ -1804,7 +1822,7 @@ function App() {
               <section className={styles.dataManagementSection}>
                 <h3 className={styles.dataManagementTitle}>データ管理</h3>
                 <p className={styles.dataManagementDescription}>
-                  記録データのバックアップを作成したり、保存済みのJSONファイルから復元できます。
+                  記録データのバックアップを作成したり、保存済みのバックアップファイルから復元できます。
                 </p>
                 <div className={styles.dataManagementActions}>
                   <button
@@ -1812,14 +1830,14 @@ function App() {
                     className={styles.dataManagementButton}
                     onClick={handleExportData}
                   >
-                    データを書き出す
+                    バックアップを作成
                   </button>
                   <button
                     type="button"
                     className={styles.dataManagementButton}
                     onClick={() => importFileInputRef.current?.click()}
                   >
-                    データを読み込む
+                    バックアップから復元
                   </button>
                   <input
                     ref={importFileInputRef}

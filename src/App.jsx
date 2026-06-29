@@ -1556,57 +1556,62 @@ function App() {
         {/* メインコンテンツ */}
         {mode === 'calendar' && (
           <div
+            className={styles.calendarScreen}
             onClick={() => {
               if (openSwipeId) closeSwipe();
             }}
           >
-            <CustomCalendar />
+            <div className={styles.calendarFixedArea}>
+              <CustomCalendar />
+            </div>
 
-            {/* 選択された日付の記録表示 */}
-            {selectedRecords.length > 0 && (
-              <div className={styles.recordsSection}>
-                <h3 className={styles.recordsTitle}>
-                  {selectedDate.toLocaleDateString('ja-JP', {
-                    month: 'long',
-                    day: 'numeric',
-                    weekday: 'short',
-                  })}{' '}
-                  の記録
-                </h3>
+            <div className={styles.recordsScrollArea}>
+              {/* 選択された日付の記録表示 */}
+              {selectedRecords.length > 0 && (
+                <div className={styles.recordsSection}>
+                  <h3 className={styles.recordsTitle}>
+                    {selectedDate.toLocaleDateString('ja-JP', {
+                      month: 'long',
+                      day: 'numeric',
+                      weekday: 'short',
+                    })}{' '}
+                    の記録
+                  </h3>
 
-                {/* 記録一覧 */}
-                {selectedRecords.map((record, index) => {
-                  const swipeId = `${selectedYmd}-${index}`;
-                  const isDragging = draggingSwipeId === swipeId;
-                  const isOpen = openSwipeId === swipeId;
-                  const translateX = isDragging
-                    ? dragOffsetX
-                    : isOpen
-                    ? -SWIPE_ACTION_WIDTH
-                    : 0;
+                  {/* 記録一覧 */}
+                  {selectedRecords.map((record, index) => {
+                    const swipeId = `${selectedYmd}-${index}`;
+                    const isDragging = draggingSwipeId === swipeId;
+                    const isOpen = openSwipeId === swipeId;
+                    const translateX = isDragging
+                      ? dragOffsetX
+                      : isOpen
+                      ? -SWIPE_ACTION_WIDTH
+                      : 0;
 
-                  return (
-                    <RecordCardItem
-                      key={swipeId}
-                      record={record}
-                      index={index}
-                      swipeId={swipeId}
-                      selectedYmd={selectedYmd}
-                      selectedDateLabel={selectedDate.toLocaleDateString('ja-JP')}
-                      isOpen={isOpen}
-                      translateX={translateX}
-                      handleSwipePointerDown={handleSwipePointerDown}
-                      handleSwipePointerMove={handleSwipePointerMove}
-                      handleSwipePointerEnd={handleSwipePointerEnd}
-                      handleCardActivate={handleCardActivate}
-                      startDeleteConfirmation={startDeleteConfirmation}
-                      handleEditRecord={handleEditRecord}
-                      openLightbox={openLightbox}
-                    />
-                  );
-                })}
-              </div>
-            )}
+                    return (
+                      <RecordCardItem
+                        key={swipeId}
+                        record={record}
+                        index={index}
+                        swipeId={swipeId}
+                        selectedYmd={selectedYmd}
+                        selectedDateLabel={selectedDate.toLocaleDateString('ja-JP')}
+                        isOpen={isOpen}
+                        translateX={translateX}
+                        handleSwipePointerDown={handleSwipePointerDown}
+                        handleSwipePointerMove={handleSwipePointerMove}
+                        handleSwipePointerEnd={handleSwipePointerEnd}
+                        handleCardActivate={handleCardActivate}
+                        startDeleteConfirmation={startDeleteConfirmation}
+                        handleEditRecord={handleEditRecord}
+                        openLightbox={openLightbox}
+                      />
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         )}
 

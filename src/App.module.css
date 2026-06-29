@@ -599,6 +599,7 @@
 
 .colorFan {
   position: absolute;
+  z-index: 1301;
   left: 50%;
   top: 50%;
   width: 0;
@@ -622,6 +623,7 @@
 
 .colorOptionButton {
   position: absolute;
+  z-index: 1;
   left: -1.375rem;
   top: -1.375rem;
   width: 2.75rem;

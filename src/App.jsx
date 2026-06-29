@@ -106,8 +106,8 @@ const COLOR_LONG_PRESS_MS = 360;
 const COLOR_FAN_RADIUS_PX = 76;
 const COLOR_SELECT_DISTANCE_PX = 34;
 const COLOR_MIN_SELECT_DISTANCE_PX = 24;
-const COLOR_FAN_START_DEG = 135;
-const COLOR_FAN_END_DEG = 225;
+const COLOR_FAN_START_DEG = 180;
+const COLOR_FAN_END_DEG = 270;
 
 const COLOR_OPTIONS = [
   { id: 'red', label: '赤', color: '#e74c3c' },

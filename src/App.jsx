@@ -1512,7 +1512,7 @@ function App() {
                 {hasRecord ? (
                   <div
                     className={styles.recordBadge}
-                    style={{ backgroundColor: records[ymd].records[0].color }}
+                    style={{ '--record-color': records[ymd].records[0].color }}
                   >
                     {date.getDate()}
                   </div>

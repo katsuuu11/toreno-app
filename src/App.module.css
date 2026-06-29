@@ -191,16 +191,21 @@
 }
 
 .recordBadge {
+  --record-color: #1e90ff;
   flex: 0 0 auto;
-  inline-size: min(2.7em, 88%);
+  inline-size: min(2.45em, 82%);
   aspect-ratio: 1 / 1;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
-  font-weight: bold;
+  color: #fff;
+  background: var(--record-color);
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  font-size: 0.95em;
+  font-weight: 800;
   line-height: 1;
+  letter-spacing: -0.04em;
   transition: transform 0.2s ease;
 }
 

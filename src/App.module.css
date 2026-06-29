@@ -192,14 +192,15 @@
 
 .recordBadge {
   flex: 0 0 auto;
-  width: min(28px, 80%);
-  height: min(28px, 80%);
+  inline-size: min(2.7em, 88%);
+  aspect-ratio: 1 / 1;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
   font-weight: bold;
+  line-height: 1;
   transition: transform 0.2s ease;
 }
 

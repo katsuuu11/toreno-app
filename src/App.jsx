@@ -1,5 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import DOMPurify from 'dompurify';
+import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { Capacitor } from '@capacitor/core';
 import { Directory, Encoding, Filesystem } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
@@ -1233,6 +1234,12 @@ function App() {
     closeSwipe();
   };
 
+  const applySelectedImageBlob = useCallback((imageBlob) => {
+    setSelectedImageBlob(imageBlob);
+    setIsImageRemoved(false);
+    updateFormImagePreview(URL.createObjectURL(imageBlob));
+  }, [updateFormImagePreview]);
+
   // 画像アップロード処理
   const handleImageUpload = (event) => {
     const input = event.target;
@@ -1249,10 +1256,36 @@ function App() {
       return;
     }
 
-    setSelectedImageBlob(file);
-    setIsImageRemoved(false);
-    updateFormImagePreview(URL.createObjectURL(file));
+    applySelectedImageBlob(file);
     input.value = '';
+  };
+
+  const handleNativeImagePrompt = async () => {
+    try {
+      const photo = await Camera.getPhoto({
+        quality: 90,
+        resultType: CameraResultType.Uri,
+        source: CameraSource.Prompt,
+        promptLabelHeader: '画像を追加',
+        promptLabelPhoto: '写真ライブラリから選択',
+        promptLabelPicture: '写真を撮る',
+        promptLabelCancel: 'キャンセル',
+      });
+
+      if (!photo.webPath) {
+        return;
+      }
+
+      const response = await fetch(photo.webPath);
+      const blob = await response.blob();
+      applySelectedImageBlob(blob);
+    } catch (error) {
+      if (error?.message?.toLowerCase?.().includes('cancel')) {
+        return;
+      }
+      console.warn('Failed to select image with Capacitor Camera', error);
+      alert('画像を追加できませんでした。');
+    }
   };
 
   // 画像削除
@@ -1657,20 +1690,33 @@ function App() {
               <div className={styles.headerTime}>{startTime}</div>
 
               <div className={styles.headerActions}>
-                <input
-                  type="file"
-                  id="image-upload"
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  style={{ display: 'none' }}
-                />
-                <label
-                  htmlFor="image-upload"
-                  className={styles.headerImageButton}
-                  aria-label="画像を追加"
-                >
-                  <IconCamera />
-                </label>
+                {!Capacitor.isNativePlatform() && (
+                  <input
+                    type="file"
+                    id="image-upload"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    style={{ display: 'none' }}
+                  />
+                )}
+                {Capacitor.isNativePlatform() ? (
+                  <button
+                    type="button"
+                    className={styles.headerImageButton}
+                    aria-label="画像を追加"
+                    onClick={handleNativeImagePrompt}
+                  >
+                    <IconCamera />
+                  </button>
+                ) : (
+                  <label
+                    htmlFor="image-upload"
+                    className={styles.headerImageButton}
+                    aria-label="画像を追加"
+                  >
+                    <IconCamera />
+                  </label>
+                )}
 
                 <button
                   onClick={handleSave}

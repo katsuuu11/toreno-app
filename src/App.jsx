@@ -52,6 +52,11 @@ const UI_TEXT = Object.freeze({
 const sanitizeHtml = (html) =>
   DOMPurify.sanitize(html, { ALLOWED_TAGS, ALLOWED_ATTR });
 
+const dataUrlToBlob = async (dataUrl) => {
+  const response = await fetch(dataUrl);
+  return response.blob();
+};
+
 const insertHtmlAtCursor = (html) => {
   const selection = window.getSelection();
   if (!selection || selection.rangeCount === 0) {
@@ -1264,7 +1269,7 @@ function App() {
     try {
       const photo = await Camera.getPhoto({
         quality: 90,
-        resultType: CameraResultType.Uri,
+        resultType: CameraResultType.DataUrl,
         source: CameraSource.Prompt,
         promptLabelHeader: '画像を追加',
         promptLabelPhoto: '写真ライブラリから選択',
@@ -1272,15 +1277,15 @@ function App() {
         promptLabelCancel: 'キャンセル',
       });
 
-      if (!photo.webPath) {
+      if (!photo.dataUrl) {
         return;
       }
 
-      const response = await fetch(photo.webPath);
-      const blob = await response.blob();
+      const blob = await dataUrlToBlob(photo.dataUrl);
       applySelectedImageBlob(blob);
     } catch (error) {
-      if (error?.message?.toLowerCase?.().includes('cancel')) {
+      const errorMessage = error?.message?.toLowerCase?.() || '';
+      if (errorMessage.includes('cancel') || errorMessage.includes('user cancelled photos app')) {
         return;
       }
       console.warn('Failed to select image with Capacitor Camera', error);

@@ -1,6 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import DOMPurify from 'dompurify';
-import { Camera } from '@capacitor/camera';
 import { Capacitor } from '@capacitor/core';
 import { Directory, Encoding, Filesystem } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
@@ -51,11 +50,6 @@ const UI_TEXT = Object.freeze({
 
 const sanitizeHtml = (html) =>
   DOMPurify.sanitize(html, { ALLOWED_TAGS, ALLOWED_ATTR });
-
-const dataUrlToBlob = async (dataUrl) => {
-  const response = await fetch(dataUrl);
-  return response.blob();
-};
 
 const insertHtmlAtCursor = (html) => {
   const selection = window.getSelection();
@@ -1265,57 +1259,6 @@ function App() {
     input.value = '';
   };
 
-  const handleNativeImagePrompt = async () => {
-    const shouldTakePhoto = window.confirm(
-      '画像を追加します。\n\n「OK」: 写真を撮る\n「キャンセル」: 写真ライブラリから選択へ進む'
-    );
-    const shouldChooseFromGallery = shouldTakePhoto
-      ? false
-      : window.confirm(
-          '写真ライブラリから画像を選択しますか？\n\n「OK」: 写真ライブラリから選択\n「キャンセル」: 画像追加をやめる'
-        );
-
-    if (!shouldTakePhoto && !shouldChooseFromGallery) {
-      return;
-    }
-
-    try {
-      const result = shouldTakePhoto
-        ? await Camera.takePhoto({ quality: 90, includeMetadata: true })
-        : (await Camera.chooseFromGallery({
-            quality: 90,
-            limit: 1,
-            includeMetadata: true,
-          })).results?.[0];
-
-      if (!result?.uri) {
-        return;
-      }
-
-      const file = await Filesystem.readFile({ path: result.uri });
-      if (!file?.data) {
-        return;
-      }
-
-      const imageFormat = result.metadata?.format || 'jpeg';
-      const dataUrl = `data:image/${imageFormat};base64,${file.data}`;
-      const blob = await dataUrlToBlob(dataUrl);
-      applySelectedImageBlob(blob);
-    } catch (error) {
-      const errorMessage = error?.message?.toLowerCase?.() || '';
-      if (
-        errorMessage.includes('cancel') ||
-        errorMessage.includes('denied') ||
-        errorMessage.includes('permission') ||
-        errorMessage.includes('user cancelled photos app')
-      ) {
-        return;
-      }
-      console.warn('Failed to select image with Capacitor Camera', error);
-      alert('画像を追加できませんでした。');
-    }
-  };
-
   // 画像削除
   const removeImage = () => {
     updateFormImagePreview('');
@@ -1718,33 +1661,21 @@ function App() {
               <div className={styles.headerTime}>{startTime}</div>
 
               <div className={styles.headerActions}>
-                {!Capacitor.isNativePlatform() && (
-                  <input
-                    type="file"
-                    id="image-upload"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    style={{ display: 'none' }}
-                  />
-                )}
-                {Capacitor.isNativePlatform() ? (
-                  <button
-                    type="button"
-                    className={styles.headerImageButton}
-                    aria-label="画像を追加"
-                    onClick={handleNativeImagePrompt}
-                  >
-                    <IconCamera />
-                  </button>
-                ) : (
-                  <label
-                    htmlFor="image-upload"
-                    className={styles.headerImageButton}
-                    aria-label="画像を追加"
-                  >
-                    <IconCamera />
-                  </label>
-                )}
+                <input
+                  type="file"
+                  id="image-upload"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  style={{ display: 'none' }}
+                />
+
+                <label
+                  htmlFor="image-upload"
+                  className={styles.headerImageButton}
+                  aria-label="画像を追加"
+                >
+                  <IconCamera />
+                </label>
 
                 <button
                   onClick={handleSave}

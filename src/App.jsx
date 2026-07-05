@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import DOMPurify from 'dompurify';
-import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
+import { Camera } from '@capacitor/camera';
 import { Capacitor } from '@capacitor/core';
 import { Directory, Encoding, Filesystem } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
@@ -1266,26 +1266,49 @@ function App() {
   };
 
   const handleNativeImagePrompt = async () => {
-    try {
-      const photo = await Camera.getPhoto({
-        quality: 90,
-        resultType: CameraResultType.DataUrl,
-        source: CameraSource.Prompt,
-        promptLabelHeader: '画像を追加',
-        promptLabelPhoto: '写真ライブラリから選択',
-        promptLabelPicture: '写真を撮る',
-        promptLabelCancel: 'キャンセル',
-      });
+    const shouldTakePhoto = window.confirm(
+      '画像を追加します。\n\n「OK」: 写真を撮る\n「キャンセル」: 写真ライブラリから選択へ進む'
+    );
+    const shouldChooseFromGallery = shouldTakePhoto
+      ? false
+      : window.confirm(
+          '写真ライブラリから画像を選択しますか？\n\n「OK」: 写真ライブラリから選択\n「キャンセル」: 画像追加をやめる'
+        );
 
-      if (!photo.dataUrl) {
+    if (!shouldTakePhoto && !shouldChooseFromGallery) {
+      return;
+    }
+
+    try {
+      const result = shouldTakePhoto
+        ? await Camera.takePhoto({ quality: 90, includeMetadata: true })
+        : (await Camera.chooseFromGallery({
+            quality: 90,
+            limit: 1,
+            includeMetadata: true,
+          })).results?.[0];
+
+      if (!result?.uri) {
         return;
       }
 
-      const blob = await dataUrlToBlob(photo.dataUrl);
+      const file = await Filesystem.readFile({ path: result.uri });
+      if (!file?.data) {
+        return;
+      }
+
+      const imageFormat = result.metadata?.format || 'jpeg';
+      const dataUrl = `data:image/${imageFormat};base64,${file.data}`;
+      const blob = await dataUrlToBlob(dataUrl);
       applySelectedImageBlob(blob);
     } catch (error) {
       const errorMessage = error?.message?.toLowerCase?.() || '';
-      if (errorMessage.includes('cancel') || errorMessage.includes('user cancelled photos app')) {
+      if (
+        errorMessage.includes('cancel') ||
+        errorMessage.includes('denied') ||
+        errorMessage.includes('permission') ||
+        errorMessage.includes('user cancelled photos app')
+      ) {
         return;
       }
       console.warn('Failed to select image with Capacitor Camera', error);

@@ -1,5 +1,8 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import DOMPurify from 'dompurify';
+import { Capacitor } from '@capacitor/core';
+import { Directory, Encoding, Filesystem } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
 import styles from './App.module.css';
 import {
   deleteImageBlob,
@@ -793,13 +796,37 @@ function App() {
   const handleExportData = async () => {
     try {
       const backupData = await createBackupData();
-      const blob = new Blob([JSON.stringify(backupData, null, 2)], {
+      const backupJson = JSON.stringify(backupData, null, 2);
+      const fileName = `treno-backup-${formatDateKey(new Date())}.json`;
+
+      if (Capacitor.isNativePlatform()) {
+        await Filesystem.writeFile({
+          path: fileName,
+          data: backupJson,
+          directory: Directory.Cache,
+          encoding: Encoding.UTF8,
+        });
+        const { uri } = await Filesystem.getUri({
+          path: fileName,
+          directory: Directory.Cache,
+        });
+
+        await Share.share({
+          title: 'TRENO backup',
+          text: 'TRENOのバックアップファイルです。',
+          files: [uri],
+          dialogTitle: 'バックアップファイルを保存',
+        });
+        return;
+      }
+
+      const blob = new Blob([backupJson], {
         type: 'application/json',
       });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `treno-backup-${formatDateKey(new Date())}.json`;
+      link.download = fileName;
       document.body.appendChild(link);
       link.click();
       link.remove();

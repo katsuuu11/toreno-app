@@ -15,7 +15,9 @@
     "@capacitor/ios": "^8.4.1",
     "dompurify": "^3.3.0",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "@capacitor/filesystem": "^8.1.2",
+    "@capacitor/share": "^8.0.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.31.0",

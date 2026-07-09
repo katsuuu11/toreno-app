@@ -1522,7 +1522,6 @@ function App() {
           </button>
           {isMonthInputSupported ? (
             <label className={styles.monthPickerNative}>
-              <span className={styles.monthPickerNativeLabel}>表示月</span>
               <input
                 type="month"
                 className={styles.monthPickerNativeInput}

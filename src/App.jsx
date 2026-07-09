@@ -1894,6 +1894,8 @@ function App() {
                     if (!inserted) {
                       document.execCommand('insertHTML', false, insert);
                     }
+                    const nextHtml = editorRef.current?.innerHTML || '';
+                    setNoteHtml(sanitizeHtml(nextHtml));
                   }}
                   className={styles.editor}
                 />

@@ -209,13 +209,22 @@
   line-height: 1;
 }
 
+.recordDots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.16em;
+  min-block-size: 0.45em;
+  margin-top: 0.3em;
+  flex: 0 0 auto;
+}
+
 .recordDot {
   --record-color: #1e90ff;
   inline-size: 0.45em;
   block-size: 0.45em;
   border-radius: 50%;
   background: var(--record-color);
-  margin-top: 0.3em;
   flex: 0 0 auto;
 }
 

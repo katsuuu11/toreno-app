@@ -1509,7 +1509,8 @@ function App() {
             const isToday = today.toDateString() === date.toDateString();
             const isSelected =
               selectedDate.toDateString() === date.toDateString();
-            const hasRecord = records[ymd]?.records?.length > 0;
+            const dayRecords = records[ymd]?.records || [];
+            const recordDots = dayRecords.slice(0, 3);
             const dayOfWeek = date.getDay();
 
             const tileClasses = [
@@ -1541,13 +1542,15 @@ function App() {
                 type="button"
               >
                 <span className={styles.dayNumber}>{date.getDate()}</span>
-                {hasRecord && (
-                  <span
-                    className={styles.recordDot}
-                    style={{ '--record-color': records[ymd].records[0].color }}
-                    aria-hidden="true"
-                  />
-                )}
+                <span className={styles.recordDots} aria-hidden="true">
+                  {recordDots.map((record, dotIndex) => (
+                    <span
+                      key={`${ymd}-${dotIndex}`}
+                      className={styles.recordDot}
+                      style={{ '--record-color': record.color }}
+                    />
+                  ))}
+                </span>
               </button>
             );
           })}

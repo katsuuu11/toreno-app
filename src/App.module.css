@@ -117,13 +117,21 @@
   color: #1e90ff;
 }
 
+.monthPickerControls {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
 .monthPickerNative,
 .monthPickerSelects {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
   min-height: 44px;
-  padding: 0.2rem 0.35rem 0.2rem 0.75rem;
+  padding: 0.2rem 0.35rem;
   border: 1px solid rgba(30, 144, 255, 0.22);
   border-radius: 999px;
   background: #f8fbff;
@@ -160,6 +168,33 @@
 .monthPickerNativeInput {
   font-size: 1rem;
 }
+
+.currentMonthButton {
+  min-height: 36px;
+  border: 1px solid rgba(30, 144, 255, 0.26);
+  border-radius: 999px;
+  background: #fff;
+  color: #1e90ff;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 800;
+  padding: 0.25rem 0.65rem;
+  white-space: nowrap;
+  transition: background-color 0.2s ease, color 0.2s ease, opacity 0.2s ease;
+}
+
+.currentMonthButton:hover:not(:disabled),
+.currentMonthButton:focus-visible:not(:disabled) {
+  background: #eaf4ff;
+  color: #0f74d1;
+}
+
+.currentMonthButton:focus-visible {
+  outline: 2px solid #93c5fd;
+  outline-offset: 2px;
+}
+
 
 .monthPickerNativeInput:focus-visible,
 .monthPickerSelect:focus-visible {

@@ -1489,6 +1489,7 @@ function App() {
   // カスタムカレンダーコンポーネント
   const CustomCalendar = () => {
     const today = new Date();
+    const [isMonthPickerActive, setIsMonthPickerActive] = useState(false);
     const currentMonth = selectedDate.getMonth();
     const currentYear = selectedDate.getFullYear();
 
@@ -1508,6 +1509,19 @@ function App() {
       moveSelectedMonth(nextMonthDate.getFullYear(), nextMonthDate.getMonth());
     };
     const monthInputValue = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
+    const isShowingCurrentMonth = currentYear === today.getFullYear() && currentMonth === today.getMonth();
+    const goToCurrentMonth = () => {
+      moveSelectedMonth(today.getFullYear(), today.getMonth());
+      setIsMonthPickerActive(false);
+    };
+    const handleMonthPickerFocus = () => {
+      closeSwipe();
+      setIsMonthPickerActive(true);
+    };
+    const handleMonthPickerBlur = (event) => {
+      if (event.currentTarget.contains(event.relatedTarget)) return;
+      setIsMonthPickerActive(false);
+    };
     const selectableYears = Array.from(
       { length: MONTH_SELECT_YEAR_SPAN * 2 + 1 },
       (_, index) => currentYear - MONTH_SELECT_YEAR_SPAN + index
@@ -1520,51 +1534,64 @@ function App() {
           <button onClick={() => changeMonth(-1)} className={styles.navButton} type="button" aria-label="前の月">
             ‹
           </button>
-          {isMonthInputSupported ? (
-            <label className={styles.monthPickerNative}>
-              <input
-                type="month"
-                className={styles.monthPickerNativeInput}
-                value={monthInputValue}
-                onChange={handleMonthInputChange}
-                onFocus={closeSwipe}
-                aria-label="表示する年月を選択"
-              />
-            </label>
-          ) : (
-            <div className={styles.monthPickerSelects} role="group" aria-label="表示する年月を選択">
-              <label className={styles.monthPickerSelectLabel}>
-                <span>年</span>
-                <select
-                  className={styles.monthPickerSelect}
-                  value={currentYear}
-                  onChange={handleYearSelectChange}
-                  onFocus={closeSwipe}
-                >
-                  {selectableYears.map((year) => (
-                    <option key={year} value={year}>
-                      {year}年
-                    </option>
-                  ))}
-                </select>
+          <div
+            className={styles.monthPickerControls}
+            onFocus={handleMonthPickerFocus}
+            onBlur={handleMonthPickerBlur}
+          >
+            {isMonthInputSupported ? (
+              <label className={styles.monthPickerNative}>
+                <input
+                  type="month"
+                  className={styles.monthPickerNativeInput}
+                  value={monthInputValue}
+                  onChange={handleMonthInputChange}
+                  aria-label="表示する年月を選択"
+                />
               </label>
-              <label className={styles.monthPickerSelectLabel}>
-                <span>月</span>
-                <select
-                  className={styles.monthPickerSelect}
-                  value={currentMonth + 1}
-                  onChange={handleMonthSelectChange}
-                  onFocus={closeSwipe}
-                >
-                  {Array.from({ length: 12 }, (_, month) => (
-                    <option key={month} value={month + 1}>
-                      {month + 1}月
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-          )}
+            ) : (
+              <div className={styles.monthPickerSelects} role="group" aria-label="表示する年月を選択">
+                <label className={styles.monthPickerSelectLabel}>
+                  <span>年</span>
+                  <select
+                    className={styles.monthPickerSelect}
+                    value={currentYear}
+                    onChange={handleYearSelectChange}
+                  >
+                    {selectableYears.map((year) => (
+                      <option key={year} value={year}>
+                        {year}年
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className={styles.monthPickerSelectLabel}>
+                  <span>月</span>
+                  <select
+                    className={styles.monthPickerSelect}
+                    value={currentMonth + 1}
+                    onChange={handleMonthSelectChange}
+                  >
+                    {Array.from({ length: 12 }, (_, month) => (
+                      <option key={month} value={month + 1}>
+                        {month + 1}月
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            )}
+            {isMonthPickerActive && !isShowingCurrentMonth && (
+              <button
+                className={styles.currentMonthButton}
+                type="button"
+                onClick={goToCurrentMonth}
+                aria-label="今の年月に戻る"
+              >
+                今月
+              </button>
+            )}
+          </div>
           <button onClick={() => changeMonth(1)} className={styles.navButton} type="button" aria-label="次の月">
             ›
           </button>

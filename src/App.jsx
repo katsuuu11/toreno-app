@@ -111,7 +111,15 @@ const COLOR_SELECT_DISTANCE_PX = 34;
 const COLOR_MIN_SELECT_DISTANCE_PX = 24;
 const COLOR_FAN_START_DEG = 210;
 const COLOR_FAN_END_DEG = 110;
-const MONTH_PICKER_YEAR_SPAN = 10;
+const MONTH_SELECT_YEAR_SPAN = 10;
+
+const supportsMonthInput = () => {
+  if (typeof document === 'undefined') return true;
+  const input = document.createElement('input');
+  input.setAttribute('type', 'month');
+  input.value = '2026-07';
+  return input.type === 'month' && input.value === '2026-07';
+};
 
 const COLOR_OPTIONS = [
   { id: 'red', label: '赤', color: '#e74c3c' },
@@ -549,7 +557,7 @@ function App() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
-  const [isMonthPickerOpen, setIsMonthPickerOpen] = useState(false);
+  const [isMonthInputSupported] = useState(() => supportsMonthInput());
   const [lightboxState, setLightboxState] = useState({
     isOpen: false,
     images: [],
@@ -601,7 +609,6 @@ function App() {
   const lightboxTriggerRef = useRef(null);
   const formImageUrlRef = useRef('');
   const importFileInputRef = useRef(null);
-  const monthPickerRef = useRef(null);
   const colorPickerRef = useRef({
     pointerId: null,
     timerId: null,
@@ -777,21 +784,32 @@ function App() {
   }, []);
 
 
-  const closeMonthPicker = useCallback(() => {
-    setIsMonthPickerOpen(false);
-  }, []);
-
-  const moveSelectedMonth = useCallback((year, month, { closePicker = false } = {}) => {
+  const moveSelectedMonth = useCallback((year, month) => {
     setSelectedDate((prevDate) => {
       const day = prevDate.getDate();
       const lastDay = new Date(year, month + 1, 0).getDate();
       return new Date(year, month, Math.min(day, lastDay));
     });
     closeSwipe();
-    if (closePicker) {
-      closeMonthPicker();
-    }
-  }, [closeMonthPicker]);
+  }, []);
+
+  const handleMonthInputChange = useCallback((event) => {
+    const [yearValue, monthValue] = event.target.value.split('-').map(Number);
+    if (!yearValue || !monthValue) return;
+    moveSelectedMonth(yearValue, monthValue - 1);
+  }, [moveSelectedMonth]);
+
+  const handleYearSelectChange = useCallback((event) => {
+    const year = Number(event.target.value);
+    if (!year) return;
+    moveSelectedMonth(year, selectedDate.getMonth());
+  }, [moveSelectedMonth, selectedDate]);
+
+  const handleMonthSelectChange = useCallback((event) => {
+    const month = Number(event.target.value);
+    if (!month) return;
+    moveSelectedMonth(selectedDate.getFullYear(), month - 1);
+  }, [moveSelectedMonth, selectedDate]);
 
   const warnStorageError = (message) => {
     const now = Date.now();
@@ -1461,28 +1479,6 @@ function App() {
     };
   }, [isDeleteDialogOpen]);
 
-  useEffect(() => {
-    if (!isMonthPickerOpen) return undefined;
-
-    const onPointerDown = (event) => {
-      if (!monthPickerRef.current?.contains(event.target)) {
-        closeMonthPicker();
-      }
-    };
-    const onKeyDown = (event) => {
-      if (event.key === 'Escape') {
-        closeMonthPicker();
-      }
-    };
-
-    window.addEventListener('pointerdown', onPointerDown);
-    window.addEventListener('keydown', onKeyDown);
-    return () => {
-      window.removeEventListener('pointerdown', onPointerDown);
-      window.removeEventListener('keydown', onKeyDown);
-    };
-  }, [closeMonthPicker, isMonthPickerOpen]);
-
   useEffect(() => () => {
     if (tapSuppressRef.current.timerId) {
       clearTimeout(tapSuppressRef.current.timerId);
@@ -1509,85 +1505,68 @@ function App() {
 
     const changeMonth = (delta) => {
       const nextMonthDate = new Date(currentYear, currentMonth + delta, 1);
-      moveSelectedMonth(nextMonthDate.getFullYear(), nextMonthDate.getMonth(), { closePicker: true });
+      moveSelectedMonth(nextMonthDate.getFullYear(), nextMonthDate.getMonth());
     };
-
+    const monthInputValue = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
     const selectableYears = Array.from(
-      { length: MONTH_PICKER_YEAR_SPAN * 2 + 1 },
-      (_, index) => currentYear - MONTH_PICKER_YEAR_SPAN + index
+      { length: MONTH_SELECT_YEAR_SPAN * 2 + 1 },
+      (_, index) => currentYear - MONTH_SELECT_YEAR_SPAN + index
     );
 
     return (
       <div className={styles.calendar}>
         {/* ナビゲーション */}
         <div className={styles.calendarNav}>
-          <button onClick={() => changeMonth(-1)} className={styles.navButton} type="button">
+          <button onClick={() => changeMonth(-1)} className={styles.navButton} type="button" aria-label="前の月">
             ‹
           </button>
-          <div className={styles.monthPickerWrapper} ref={monthPickerRef}>
-            <button
-              type="button"
-              className={styles.calendarTitleButton}
-              onClick={() => {
-                setIsMonthPickerOpen((isOpen) => !isOpen);
-                closeSwipe();
-              }}
-              aria-haspopup="dialog"
-              aria-expanded={isMonthPickerOpen}
-            >
-              {currentYear}年 {currentMonth + 1}月
-              <span className={styles.calendarTitleChevron} aria-hidden="true">⌄</span>
-            </button>
-            {isMonthPickerOpen && (
-              <div
-                className={styles.monthPickerDropdown}
-                role="dialog"
-                aria-label="年月を選択"
-              >
-                <div className={styles.monthPickerField}>
-                  <span id="month-picker-year-label">年</span>
-                  <ul
-                    className={styles.monthPickerList}
-                    aria-labelledby="month-picker-year-label"
-                  >
-                    {selectableYears.map((year) => (
-                      <li key={year}>
-                        <button
-                          type="button"
-                          className={`${styles.monthPickerOption} ${year === currentYear ? styles.activeMonthPickerOption : ''}`}
-                          onClick={() => moveSelectedMonth(year, currentMonth)}
-                          aria-current={year === currentYear ? 'date' : undefined}
-                        >
-                          {year}年
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <div className={styles.monthPickerField}>
-                  <span id="month-picker-month-label">月</span>
-                  <ul
-                    className={styles.monthPickerList}
-                    aria-labelledby="month-picker-month-label"
-                  >
-                    {Array.from({ length: 12 }, (_, month) => (
-                      <li key={month}>
-                        <button
-                          type="button"
-                          className={`${styles.monthPickerOption} ${month === currentMonth ? styles.activeMonthPickerOption : ''}`}
-                          onClick={() => moveSelectedMonth(currentYear, month)}
-                          aria-current={month === currentMonth ? 'date' : undefined}
-                        >
-                          {month + 1}月
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            )}
-          </div>
-          <button onClick={() => changeMonth(1)} className={styles.navButton} type="button">
+          {isMonthInputSupported ? (
+            <label className={styles.monthPickerNative}>
+              <span className={styles.monthPickerNativeLabel}>表示月</span>
+              <input
+                type="month"
+                className={styles.monthPickerNativeInput}
+                value={monthInputValue}
+                onChange={handleMonthInputChange}
+                onFocus={closeSwipe}
+                aria-label="表示する年月を選択"
+              />
+            </label>
+          ) : (
+            <div className={styles.monthPickerSelects} role="group" aria-label="表示する年月を選択">
+              <label className={styles.monthPickerSelectLabel}>
+                <span>年</span>
+                <select
+                  className={styles.monthPickerSelect}
+                  value={currentYear}
+                  onChange={handleYearSelectChange}
+                  onFocus={closeSwipe}
+                >
+                  {selectableYears.map((year) => (
+                    <option key={year} value={year}>
+                      {year}年
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className={styles.monthPickerSelectLabel}>
+                <span>月</span>
+                <select
+                  className={styles.monthPickerSelect}
+                  value={currentMonth + 1}
+                  onChange={handleMonthSelectChange}
+                  onFocus={closeSwipe}
+                >
+                  {Array.from({ length: 12 }, (_, month) => (
+                    <option key={month} value={month + 1}>
+                      {month + 1}月
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          )}
+          <button onClick={() => changeMonth(1)} className={styles.navButton} type="button" aria-label="次の月">
             ›
           </button>
         </div>

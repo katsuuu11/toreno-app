@@ -794,6 +794,12 @@ function App() {
   }, []);
 
   const handleMonthInputChange = useCallback((event) => {
+    if (!event.target.value) {
+      const today = new Date();
+      moveSelectedMonth(today.getFullYear(), today.getMonth());
+      return;
+    }
+
     const [yearValue, monthValue] = event.target.value.split('-').map(Number);
     if (!yearValue || !monthValue) return;
     moveSelectedMonth(yearValue, monthValue - 1);
@@ -1489,7 +1495,6 @@ function App() {
   // カスタムカレンダーコンポーネント
   const CustomCalendar = () => {
     const today = new Date();
-    const [isMonthPickerActive, setIsMonthPickerActive] = useState(false);
     const currentMonth = selectedDate.getMonth();
     const currentYear = selectedDate.getFullYear();
 
@@ -1509,18 +1514,8 @@ function App() {
       moveSelectedMonth(nextMonthDate.getFullYear(), nextMonthDate.getMonth());
     };
     const monthInputValue = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
-    const isShowingCurrentMonth = currentYear === today.getFullYear() && currentMonth === today.getMonth();
-    const goToCurrentMonth = () => {
-      moveSelectedMonth(today.getFullYear(), today.getMonth());
-      setIsMonthPickerActive(false);
-    };
     const handleMonthPickerFocus = () => {
       closeSwipe();
-      setIsMonthPickerActive(true);
-    };
-    const handleMonthPickerBlur = (event) => {
-      if (event.currentTarget.contains(event.relatedTarget)) return;
-      setIsMonthPickerActive(false);
     };
     const selectableYears = Array.from(
       { length: MONTH_SELECT_YEAR_SPAN * 2 + 1 },
@@ -1537,7 +1532,6 @@ function App() {
           <div
             className={styles.monthPickerControls}
             onFocus={handleMonthPickerFocus}
-            onBlur={handleMonthPickerBlur}
           >
             {isMonthInputSupported ? (
               <label className={styles.monthPickerNative}>
@@ -1580,16 +1574,6 @@ function App() {
                   </select>
                 </label>
               </div>
-            )}
-            {isMonthPickerActive && !isShowingCurrentMonth && (
-              <button
-                className={styles.currentMonthButton}
-                type="button"
-                onClick={goToCurrentMonth}
-                aria-label="今の年月に戻る"
-              >
-                今月
-              </button>
             )}
           </div>
           <button onClick={() => changeMonth(1)} className={styles.navButton} type="button" aria-label="次の月">

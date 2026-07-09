@@ -570,6 +570,7 @@ function App() {
   });
 
   const editorRef = useRef(null);
+  const monthInputRef = useRef(null);
   const composingRef = useRef(false);
   const storageWarnedRef = useRef(0);
   const swipeGestureRef = useRef({
@@ -793,17 +794,26 @@ function App() {
     closeSwipe();
   }, []);
 
-  const handleMonthInputChange = useCallback((event) => {
-    if (!event.target.value) {
+  const applyMonthInputValue = useCallback((value) => {
+    if (!value) {
       const today = new Date();
       moveSelectedMonth(today.getFullYear(), today.getMonth());
       return;
     }
 
-    const [yearValue, monthValue] = event.target.value.split('-').map(Number);
+    const [yearValue, monthValue] = value.split('-').map(Number);
     if (!yearValue || !monthValue) return;
     moveSelectedMonth(yearValue, monthValue - 1);
   }, [moveSelectedMonth]);
+
+  const handleMonthInputChange = useCallback(() => {
+    // Native month pickers can emit change/input while the internal picker is still open.
+    // Keep the browser's built-in reset/check controls intact and apply only when it closes.
+  }, []);
+
+  const handleMonthInputBlur = useCallback((event) => {
+    applyMonthInputValue(event.currentTarget.value);
+  }, [applyMonthInputValue]);
 
   const handleYearSelectChange = useCallback((event) => {
     const year = Number(event.target.value);
@@ -1536,10 +1546,13 @@ function App() {
             {isMonthInputSupported ? (
               <label className={styles.monthPickerNative}>
                 <input
+                  ref={monthInputRef}
                   type="month"
                   className={styles.monthPickerNativeInput}
-                  value={monthInputValue}
+                  defaultValue={monthInputValue}
+                  key={monthInputValue}
                   onChange={handleMonthInputChange}
+                  onBlur={handleMonthInputBlur}
                   aria-label="表示する年月を選択"
                 />
               </label>

@@ -117,136 +117,54 @@
   color: #1e90ff;
 }
 
-.monthPickerWrapper {
-  position: relative;
-  display: flex;
-  justify-content: center;
-}
-
-.calendarTitleButton {
+.monthPickerNative,
+.monthPickerSelects {
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
-  min-height: 44px;
-  padding: 0.25rem 0.8rem;
-  border: none;
-  border-radius: 999px;
-  background: transparent;
-  color: #333;
-  font-size: 1.1rem;
-  font-weight: bold;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.calendarTitleButton:hover,
-.calendarTitleButton:focus-visible {
-  background: #eef6ff;
-  outline: none;
-}
-
-.calendarTitleChevron {
-  font-size: 0.9rem;
-  line-height: 1;
-}
-
-.monthPickerDropdown {
-  position: absolute;
-  top: calc(100% + 0.45rem);
-  left: 50%;
-  z-index: 20;
-  display: grid;
-  grid-template-columns: minmax(7.25rem, 1fr) minmax(6rem, 0.82fr);
-  gap: 0.75rem;
-  width: min(21rem, calc(100vw - 2rem));
-  max-width: calc(100vw - 2rem);
-  padding: 0.85rem;
-  border: 1px solid rgba(148, 163, 184, 0.28);
-  border-radius: 20px;
-  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
-  box-shadow: 0 20px 48px rgba(15, 23, 42, 0.18), 0 2px 8px rgba(15, 23, 42, 0.08);
-  transform: translateX(-50%);
-}
-
-.monthPickerDropdown::before {
-  position: absolute;
-  top: -0.36rem;
-  left: 50%;
-  width: 0.75rem;
-  height: 0.75rem;
-  border-top: 1px solid rgba(148, 163, 184, 0.28);
-  border-left: 1px solid rgba(148, 163, 184, 0.28);
-  background: #fff;
-  content: '';
-  transform: translateX(-50%) rotate(45deg);
-}
-
-.monthPickerField {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
   gap: 0.45rem;
+  min-height: 44px;
+  padding: 0.2rem 0.35rem 0.2rem 0.75rem;
+  border: 1px solid rgba(30, 144, 255, 0.22);
+  border-radius: 999px;
+  background: #f8fbff;
+  color: #334155;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.monthPickerNativeLabel,
+.monthPickerSelectLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
   color: #64748b;
-  font-size: 0.76rem;
+  font-size: 0.72rem;
   font-weight: 800;
   letter-spacing: 0.08em;
 }
 
-.monthPickerList {
-  display: grid;
-  max-height: 15rem;
-  gap: 0.35rem;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  padding: 0.15rem 0.2rem 0.15rem 0;
-  list-style: none;
-  scrollbar-color: #bfdbfe transparent;
-  scrollbar-width: thin;
-}
-
-.monthPickerList::-webkit-scrollbar {
-  width: 0.45rem;
-}
-
-.monthPickerList::-webkit-scrollbar-thumb {
+.monthPickerNativeInput,
+.monthPickerSelect {
+  min-height: 36px;
+  border: none;
   border-radius: 999px;
-  background: #bfdbfe;
-}
-
-.monthPickerOption {
-  width: 100%;
-  min-height: 2.35rem;
-  border: 1px solid transparent;
-  border-radius: 12px;
-  background: transparent;
-  color: #334155;
+  background: #fff;
+  color: #1f2937;
   cursor: pointer;
+  font: inherit;
+  font-size: 0.95rem;
   font-weight: 800;
-  text-align: center;
-  transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease, transform 0.16s ease;
+  padding: 0.25rem 0.55rem;
+  color-scheme: light;
 }
 
-.monthPickerOption:hover,
-.monthPickerOption:focus-visible {
-  border-color: #bfdbfe;
-  background: #eff6ff;
-  color: #1d4ed8;
-  outline: none;
-  transform: translateY(-1px);
+.monthPickerNativeInput {
+  font-size: 1rem;
 }
 
-.activeMonthPickerOption {
-  border-color: #60a5fa;
-  background: linear-gradient(135deg, #2563eb, #38bdf8);
-  color: #fff;
-  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.26);
-}
-
-.activeMonthPickerOption:hover,
-.activeMonthPickerOption:focus-visible {
-  border-color: #60a5fa;
-  background: linear-gradient(135deg, #1d4ed8, #0ea5e9);
-  color: #fff;
+.monthPickerNativeInput:focus-visible,
+.monthPickerSelect:focus-visible {
+  outline: 2px solid #93c5fd;
+  outline-offset: 2px;
 }
 
 .weekdays {

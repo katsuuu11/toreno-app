@@ -113,11 +113,7 @@ const COLOR_FAN_START_DEG = 210;
 const COLOR_FAN_END_DEG = 110;
 const MONTH_SELECT_YEAR_SPAN = 10;
 
-const isNativeIos = () =>
-  Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios';
-
 const supportsMonthInput = () => {
-  if (isNativeIos()) return false;
   if (typeof document === 'undefined') return true;
   const input = document.createElement('input');
   input.setAttribute('type', 'month');
@@ -561,7 +557,6 @@ function App() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
-  const [isImageSourceDialogOpen, setIsImageSourceDialogOpen] = useState(false);
   const [isMonthInputSupported] = useState(() => supportsMonthInput());
   const [lightboxState, setLightboxState] = useState({
     isOpen: false,
@@ -615,8 +610,6 @@ function App() {
   const lightboxTriggerRef = useRef(null);
   const formImageUrlRef = useRef('');
   const importFileInputRef = useRef(null);
-  const photoLibraryInputRef = useRef(null);
-  const cameraInputRef = useRef(null);
   const colorPickerRef = useRef({
     pointerId: null,
     timerId: null,
@@ -1302,7 +1295,6 @@ function App() {
 
   // 画像アップロード処理
   const handleImageUpload = (event) => {
-    setIsImageSourceDialogOpen(false);
     const input = event.target;
     const file = input.files?.[0];
 
@@ -1778,29 +1770,20 @@ function App() {
 
               <div className={styles.headerActions}>
                 <input
-                  ref={photoLibraryInputRef}
                   type="file"
+                  id="image-upload"
                   accept="image/*"
-                  onChange={handleImageUpload}
-                  style={{ display: 'none' }}
-                />
-                <input
-                  ref={cameraInputRef}
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
                   onChange={handleImageUpload}
                   style={{ display: 'none' }}
                 />
 
-                <button
-                  type="button"
+                <label
+                  htmlFor="image-upload"
                   className={styles.headerImageButton}
                   aria-label="画像を追加"
-                  onClick={() => setIsImageSourceDialogOpen(true)}
                 >
                   <IconCamera />
-                </button>
+                </label>
 
                 <button
                   onClick={handleSave}
@@ -2023,48 +2006,6 @@ function App() {
                   />
                 </div>
               </section>
-            </div>
-          </div>
-        )}
-
-
-        {isImageSourceDialogOpen && (
-          <div
-            className={styles.dialogOverlay}
-            role="presentation"
-            onClick={() => setIsImageSourceDialogOpen(false)}
-          >
-            <div
-              className={styles.imageSourceDialog}
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="image-source-title"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <h2 id="image-source-title" className={styles.imageSourceTitle}>
-                写真を追加
-              </h2>
-              <button
-                type="button"
-                className={styles.imageSourceOption}
-                onClick={() => cameraInputRef.current?.click()}
-              >
-                写真を撮る
-              </button>
-              <button
-                type="button"
-                className={styles.imageSourceOption}
-                onClick={() => photoLibraryInputRef.current?.click()}
-              >
-                ライブラリから選択
-              </button>
-              <button
-                type="button"
-                className={styles.imageSourceCancel}
-                onClick={() => setIsImageSourceDialogOpen(false)}
-              >
-                キャンセル
-              </button>
             </div>
           </div>
         )}

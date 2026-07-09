@@ -205,22 +205,18 @@
   }
 }
 
-.recordBadge {
-  --record-color: #1e90ff;
-  flex: 0 0 auto;
-  inline-size: min(2.45em, 82%);
-  aspect-ratio: 1 / 1;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  background: var(--record-color);
-  font-size: 0.95em;
-  font-weight: 650;
+.dayNumber {
   line-height: 1;
-  letter-spacing: -0.04em;
-  transition: transform 0.2s ease;
+}
+
+.recordDot {
+  --record-color: #1e90ff;
+  inline-size: 0.45em;
+  block-size: 0.45em;
+  border-radius: 50%;
+  background: var(--record-color);
+  margin-top: 0.3em;
+  flex: 0 0 auto;
 }
 
 /* 記録表示 */

@@ -1540,15 +1540,13 @@ function App() {
                 className={tileClasses}
                 type="button"
               >
-                {hasRecord ? (
-                  <div
-                    className={styles.recordBadge}
+                <span className={styles.dayNumber}>{date.getDate()}</span>
+                {hasRecord && (
+                  <span
+                    className={styles.recordDot}
                     style={{ '--record-color': records[ymd].records[0].color }}
-                  >
-                    {date.getDate()}
-                  </div>
-                ) : (
-                  <span>{date.getDate()}</span>
+                    aria-hidden="true"
+                  />
                 )}
               </button>
             );

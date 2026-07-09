@@ -1544,36 +1544,46 @@ function App() {
                 role="dialog"
                 aria-label="年月を選択"
               >
-                <label className={styles.monthPickerField}>
-                  <span>年</span>
-                  <select
-                    value={currentYear}
-                    onChange={(event) => {
-                      moveSelectedMonth(Number(event.target.value), currentMonth);
-                    }}
+                <div className={styles.monthPickerField}>
+                  <span id="month-picker-year-label">年</span>
+                  <ul
+                    className={styles.monthPickerList}
+                    aria-labelledby="month-picker-year-label"
                   >
                     {selectableYears.map((year) => (
-                      <option key={year} value={year}>
-                        {year}年
-                      </option>
+                      <li key={year}>
+                        <button
+                          type="button"
+                          className={`${styles.monthPickerOption} ${year === currentYear ? styles.activeMonthPickerOption : ''}`}
+                          onClick={() => moveSelectedMonth(year, currentMonth)}
+                          aria-current={year === currentYear ? 'date' : undefined}
+                        >
+                          {year}年
+                        </button>
+                      </li>
                     ))}
-                  </select>
-                </label>
-                <label className={styles.monthPickerField}>
-                  <span>月</span>
-                  <select
-                    value={currentMonth}
-                    onChange={(event) => {
-                      moveSelectedMonth(currentYear, Number(event.target.value));
-                    }}
+                  </ul>
+                </div>
+                <div className={styles.monthPickerField}>
+                  <span id="month-picker-month-label">月</span>
+                  <ul
+                    className={styles.monthPickerList}
+                    aria-labelledby="month-picker-month-label"
                   >
                     {Array.from({ length: 12 }, (_, month) => (
-                      <option key={month} value={month}>
-                        {month + 1}月
-                      </option>
+                      <li key={month}>
+                        <button
+                          type="button"
+                          className={`${styles.monthPickerOption} ${month === currentMonth ? styles.activeMonthPickerOption : ''}`}
+                          onClick={() => moveSelectedMonth(currentYear, month)}
+                          aria-current={month === currentMonth ? 'date' : undefined}
+                        >
+                          {month + 1}月
+                        </button>
+                      </li>
                     ))}
-                  </select>
-                </label>
+                  </ul>
+                </div>
               </div>
             )}
           </div>

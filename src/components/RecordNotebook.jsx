@@ -8,7 +8,6 @@ const FAN_START_DEG = 100;
 const FAN_END_DEG = 174;
 const FAN_SELECT_DISTANCE = 48;
 const FAN_MIN_DISTANCE = 28;
-const SWIPE_THRESHOLD = 44;
 
 const formatDateLabel = (ymd) => {
   const date = new Date(`${ymd}T00:00:00`);
@@ -78,7 +77,7 @@ function RecordNotebook({
     dragging: false,
     phase: 'idle',
   });
-  const pageStackRef = useRef(null);
+  const pageViewportRef = useRef(null);
   const pointerRef = useRef({
     id: null,
     timer: null,
@@ -90,13 +89,12 @@ function RecordNotebook({
     id: null,
     startX: 0,
     startY: 0,
+    startTime: 0,
     axis: null,
   });
   const motionRef = useRef({
     nextIndex: null,
-    exitOffset: 0,
-    frameOne: null,
-    frameTwo: null,
+    resetFrame: null,
   });
 
   const allDates = useMemo(
@@ -152,24 +150,30 @@ function RecordNotebook({
         originY: 0,
         activeColor: null,
       };
-      swipeRef.current = { id: null, startX: 0, startY: 0, axis: null };
-      if (motionRef.current.frameOne) cancelAnimationFrame(motionRef.current.frameOne);
-      if (motionRef.current.frameTwo) cancelAnimationFrame(motionRef.current.frameTwo);
+      swipeRef.current = {
+        id: null,
+        startX: 0,
+        startY: 0,
+        startTime: 0,
+        axis: null,
+      };
+      if (motionRef.current.resetFrame) cancelAnimationFrame(motionRef.current.resetFrame);
       motionRef.current = {
         nextIndex: null,
-        exitOffset: 0,
-        frameOne: null,
-        frameTwo: null,
+        resetFrame: null,
       };
     },
     []
   );
 
   const pageIndex = filteredDates.indexOf(currentDate);
-  const dayRecords = pageIndex >= 0 ? records[currentDate]?.records || [] : [];
-  const visibleRecords = dayRecords
-    .map((record, originalIndex) => ({ record, originalIndex }))
-    .filter(({ record }) => !filterColor || record.color === filterColor);
+  const pageDates = [
+    pageIndex > 0 ? filteredDates[pageIndex - 1] : null,
+    pageIndex >= 0 ? filteredDates[pageIndex] : null,
+    pageIndex >= 0 && pageIndex < filteredDates.length - 1
+      ? filteredDates[pageIndex + 1]
+      : null,
+  ];
 
   const clearFilterPointer = () => {
     if (pointerRef.current.timer) clearTimeout(pointerRef.current.timer);
@@ -243,11 +247,16 @@ function RecordNotebook({
   };
 
   const handlePageDown = (event) => {
-    if (event.target.closest('button') || pageMotion.phase !== 'idle') return;
+    if (
+      event.target.closest(
+        'button, a, input, textarea, select, [data-no-page-swipe]'
+      ) || pageMotion.phase !== 'idle'
+    ) return;
     swipeRef.current = {
       id: event.pointerId,
       startX: event.clientX,
       startY: event.clientY,
+      startTime: performance.now(),
       axis: null,
     };
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -272,7 +281,13 @@ function RecordNotebook({
   };
 
   const resetSwipe = () => {
-    swipeRef.current = { id: null, startX: 0, startY: 0, axis: null };
+    swipeRef.current = {
+      id: null,
+      startX: 0,
+      startY: 0,
+      startTime: 0,
+      axis: null,
+    };
   };
 
   const returnPageToOrigin = () => {
@@ -288,25 +303,34 @@ function RecordNotebook({
     if (swipe.id !== event.pointerId) return;
     const dx = event.clientX - swipe.startX;
     const dy = event.clientY - swipe.startY;
+    const elapsed = Math.max(1, performance.now() - swipe.startTime);
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
     resetSwipe();
 
     const isHorizontal = swipe.axis === 'horizontal';
-    const passedThreshold = Math.abs(dx) >= SWIPE_THRESHOLD;
+    const viewportWidth = pageViewportRef.current?.offsetWidth || window.innerWidth;
+    const passedDistanceThreshold = Math.abs(dx) >= viewportWidth * 0.22;
+    const passedVelocityThreshold = Math.abs(dx / elapsed) >= 0.55 && Math.abs(dx) >= 18;
     const nextIndex = pageIndex + (dx < 0 ? 1 : -1);
     const hasNextPage = nextIndex >= 0 && nextIndex < filteredDates.length;
-    if (!isHorizontal || !passedThreshold || Math.abs(dx) <= Math.abs(dy) * 1.2 || !hasNextPage) {
+    if (
+      !isHorizontal ||
+      (!passedDistanceThreshold && !passedVelocityThreshold) ||
+      Math.abs(dx) <= Math.abs(dy) * 1.2 ||
+      !hasNextPage
+    ) {
       returnPageToOrigin();
       return;
     }
 
-    const exitDistance = (pageStackRef.current?.offsetWidth || window.innerWidth) + 48;
-    const exitOffset = dx < 0 ? -exitDistance : exitDistance;
     motionRef.current.nextIndex = nextIndex;
-    motionRef.current.exitOffset = exitOffset;
-    setPageMotion({ offset: exitOffset, dragging: false, phase: 'exit' });
+    setPageMotion({
+      offset: dx < 0 ? -viewportWidth : viewportWidth,
+      dragging: false,
+      phase: 'settle',
+    });
   };
 
   const cancelPagePointer = (event) => {
@@ -318,7 +342,7 @@ function RecordNotebook({
   const handlePageTransitionEnd = (event) => {
     if (event.target !== event.currentTarget || event.propertyName !== 'transform') return;
 
-    if (pageMotion.phase === 'exit') {
+    if (pageMotion.phase === 'settle') {
       const nextDate = filteredDates[motionRef.current.nextIndex];
       if (!nextDate) {
         motionRef.current.nextIndex = null;
@@ -326,22 +350,84 @@ function RecordNotebook({
         return;
       }
 
-      const entranceOffset = -motionRef.current.exitOffset;
       setCurrentDate(nextDate);
-      setPageMotion({ offset: entranceOffset, dragging: false, phase: 'prepare' });
-      motionRef.current.frameOne = requestAnimationFrame(() => {
-        motionRef.current.frameTwo = requestAnimationFrame(() => {
-          setPageMotion({ offset: 0, dragging: false, phase: 'enter' });
-        });
+      setPageMotion({ offset: 0, dragging: false, phase: 'reset' });
+      motionRef.current.resetFrame = requestAnimationFrame(() => {
+        motionRef.current.nextIndex = null;
+        setPageMotion({ offset: 0, dragging: false, phase: 'idle' });
       });
       return;
     }
 
-    if (pageMotion.phase === 'enter' || pageMotion.phase === 'return') {
+    if (pageMotion.phase === 'return') {
       motionRef.current.nextIndex = null;
-      motionRef.current.exitOffset = 0;
       setPageMotion({ offset: 0, dragging: false, phase: 'idle' });
     }
+  };
+
+  const renderPage = (ymd, position) => {
+    if (!ymd) {
+      return (
+        <div
+          className={styles.pagePlaceholder}
+          aria-hidden="true"
+          key={`placeholder-${position}`}
+        />
+      );
+    }
+
+    const visibleRecords = (records[ymd]?.records || [])
+      .map((record, originalIndex) => ({ record, originalIndex }))
+      .filter(({ record }) => !filterColor || record.color === filterColor);
+
+    return (
+      <div className={styles.pageShell} key={ymd}>
+        <div className={styles.pageEdge} aria-hidden="true" />
+        <div className={styles.page}>
+          <div className={styles.pageContent}>
+            <h2 className={styles.date}>{formatDateLabel(ymd)}</h2>
+            <div className={styles.recordList}>
+              {visibleRecords.map(({ record, originalIndex }) => (
+                <article
+                  className={styles.recordCard}
+                  style={{ '--record-color': record.color }}
+                  key={`${ymd}-${originalIndex}`}
+                >
+                  <div className={styles.recordHeader}>
+                    <div>
+                      {record.startTime && <div className={styles.time}>{record.startTime}</div>}
+                      <h3 className={styles.part}>{record.part || '記録'}</h3>
+                    </div>
+                    <div className={styles.actions}>
+                      <button
+                        type="button"
+                        className={styles.editButton}
+                        onClick={() => onEdit(record, originalIndex, ymd)}
+                      >
+                        編集
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.deleteButton}
+                        onClick={() => onDelete(ymd, originalIndex)}
+                        aria-label={`${record.part || '記録'}を削除`}
+                      >
+                        削除
+                      </button>
+                    </div>
+                  </div>
+                  <div
+                    className={styles.note}
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(record.note || '') }}
+                  />
+                  <NotebookImage imageId={record.imageId} onOpen={onOpenImage} />
+                </article>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -354,63 +440,26 @@ function RecordNotebook({
       </header>
 
       <div className={styles.notebookArea}>
-        <div
-          ref={pageStackRef}
-          className={`${styles.pageStack} ${
-            pageMotion.dragging ? styles.pageStackDragging : ''
-          } ${pageMotion.phase === 'prepare' ? styles.pageStackPrepare : ''}`}
-          style={{ transform: `translate3d(${pageMotion.offset}px, 0, 0)` }}
-          onPointerDown={handlePageDown}
-          onPointerMove={handlePageMove}
-          onPointerUp={handlePageEnd}
-          onPointerCancel={cancelPagePointer}
-          onTransitionEnd={handlePageTransitionEnd}
-        >
-          <div className={styles.pageEdge} aria-hidden="true" />
-          <div className={styles.page}>
-          {filteredDates.length > 0 ? (
-            <div className={styles.pageContent}>
-              <h2 className={styles.date}>{formatDateLabel(currentDate)}</h2>
-              <div className={styles.recordList}>
-                {visibleRecords.map(({ record, originalIndex }) => (
-                  <article
-                    className={styles.recordCard}
-                    style={{ '--record-color': record.color }}
-                    key={`${currentDate}-${originalIndex}`}
-                  >
-                    <div className={styles.recordHeader}>
-                      <div>
-                        {record.startTime && <div className={styles.time}>{record.startTime}</div>}
-                        <h3 className={styles.part}>{record.part || '記録'}</h3>
-                      </div>
-                      <div className={styles.actions}>
-                        <button
-                          type="button"
-                          className={styles.editButton}
-                          onClick={() => onEdit(record, originalIndex, currentDate)}
-                        >
-                          編集
-                        </button>
-                        <button
-                          type="button"
-                          className={styles.deleteButton}
-                          onClick={() => onDelete(currentDate, originalIndex)}
-                          aria-label={`${record.part || '記録'}を削除`}
-                        >
-                          削除
-                        </button>
-                      </div>
-                    </div>
-                    <div
-                      className={styles.note}
-                      dangerouslySetInnerHTML={{ __html: sanitizeHtml(record.note || '') }}
-                    />
-                    <NotebookImage imageId={record.imageId} onOpen={onOpenImage} />
-                  </article>
-                ))}
-              </div>
+        {filteredDates.length > 0 ? (
+          <div ref={pageViewportRef} className={styles.pageViewport}>
+            <div
+              className={`${styles.pageTrack} ${
+                pageMotion.dragging ? styles.pageTrackDragging : ''
+              } ${pageMotion.phase === 'reset' ? styles.pageTrackReset : ''}`}
+              style={{
+                transform: `translate3d(calc(-33.333333% + ${pageMotion.offset}px), 0, 0)`,
+              }}
+              onPointerDown={handlePageDown}
+              onPointerMove={handlePageMove}
+              onPointerUp={handlePageEnd}
+              onPointerCancel={cancelPagePointer}
+              onTransitionEnd={handlePageTransitionEnd}
+            >
+              {pageDates.map((ymd, index) => renderPage(ymd, index))}
             </div>
-          ) : (
+          </div>
+        ) : (
+          <div className={styles.emptyPage}>
             <div className={styles.emptyState}>
               <strong>{allDates.length === 0 ? 'まだ記録がありません' : 'この色の記録はありません'}</strong>
               <p>{allDates.length === 0 ? 'カレンダーから最初の記録を追加しましょう。' : '全色表示に戻して記録を確認できます。'}</p>
@@ -418,9 +467,8 @@ function RecordNotebook({
                 <button type="button" onClick={() => setFilterColor(null)}>全色に戻す</button>
               )}
             </div>
-          )}
           </div>
-        </div>
+        )}
 
         <button
           type="button"

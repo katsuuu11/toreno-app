@@ -4,6 +4,7 @@ import { Capacitor } from '@capacitor/core';
 import { Directory, Encoding, Filesystem } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import styles from './App.module.css';
+import RecordNotebook from './components/RecordNotebook';
 import {
   deleteImageBlob,
   initializeLocalDb,
@@ -545,7 +546,9 @@ function App() {
   const [records, setRecords] = useState({});
   const [editBuffers, setEditBuffers] = useState({});
   const [isDbReady, setIsDbReady] = useState(false);
-  const [mode, setMode] = useState('calendar'); // 'calendar', 'form'
+  const [mode, setMode] = useState('calendar'); // 'calendar', 'notebook', 'form'
+  const [notebookDate, setNotebookDate] = useState('');
+  const [formReturnMode, setFormReturnMode] = useState('calendar');
   const [editingIndex, setEditingIndex] = useState(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState('');
   const [selectedImageBlob, setSelectedImageBlob] = useState(null);
@@ -1185,6 +1188,7 @@ function App() {
     setSelectedColor(buffer.color || '#e74c3c');
     setStartTime('');
     clearFormImageState();
+    setFormReturnMode('calendar');
     setMode('form');
   };
 
@@ -1260,8 +1264,14 @@ function App() {
   };
 
   // 編集開始
-  const handleEditRecord = async (record, index) => {
-    setEditingDate(selectedDate);
+  const handleEditRecord = async (
+    record,
+    index,
+    date = selectedDate,
+    returnMode = 'calendar'
+  ) => {
+    setSelectedDate(date);
+    setEditingDate(date);
     setEditingIndex(index);
     setInputParts(record.part);
     setNoteHtml(record.note);
@@ -1283,6 +1293,7 @@ function App() {
       }
     }
 
+    setFormReturnMode(returnMode);
     setMode('form');
     closeSwipe();
   };
@@ -1391,7 +1402,7 @@ function App() {
       });
     }
 
-    setMode('calendar');
+    setMode(formReturnMode);
     setInputParts('');
     setNoteHtml('');
     setSelectedColor('#e74c3c');
@@ -1668,6 +1679,14 @@ function App() {
 
   const selectedYmd = formatDateKey(selectedDate);
   const selectedRecords = records[selectedYmd]?.records || [];
+  const openNotebook = () => {
+    const latestDate = Object.keys(records)
+      .filter((ymd) => Array.isArray(records[ymd]?.records) && records[ymd].records.length > 0)
+      .sort((a, b) => b.localeCompare(a))[0];
+    setNotebookDate(selectedRecords.length > 0 ? selectedYmd : latestDate || selectedYmd);
+    setMode('notebook');
+    closeSwipe();
+  };
   const displayedColor = selectedColor;
   const visibleColorOptions = useMemo(
     () => getColorFanOptions(displayedColor),
@@ -1705,6 +1724,12 @@ function App() {
             </div>
 
             <div className={styles.recordsScrollArea}>
+              <div className={styles.recordsOverviewHeader}>
+                <h2 className={styles.recordsOverviewTitle}>Records</h2>
+                <button type="button" className={styles.viewAllButton} onClick={openNotebook}>
+                  All <span aria-hidden="true">›</span>
+                </button>
+              </div>
               {/* 選択された日付の記録表示 */}
               {selectedRecords.length > 0 && (
                 <div className={styles.recordsSection}>
@@ -1754,13 +1779,36 @@ function App() {
           </div>
         )}
 
+        {mode === 'notebook' && (
+          <RecordNotebook
+            records={records}
+            initialDate={notebookDate}
+            colorOptions={COLOR_OPTIONS}
+            sanitizeHtml={sanitizeHtml}
+            onBack={() => setMode('calendar')}
+            onDateChange={setNotebookDate}
+            onEdit={(record, index, ymd) =>
+              handleEditRecord(record, index, new Date(`${ymd}T00:00:00`), 'notebook')
+            }
+            onDelete={(ymd, index) =>
+              startDeleteConfirmation({
+                ymd,
+                index,
+                swipeId: `notebook-${ymd}-${index}`,
+                dateLabel: new Date(`${ymd}T00:00:00`).toLocaleDateString('ja-JP'),
+              })
+            }
+            onOpenImage={openLightbox}
+          />
+        )}
+
         {mode === 'form' && editingDate && (
           <div className={styles.container}>
             <header className={styles.header}>
               <button
                 className={styles.backButton}
                 aria-label="カレンダーに戻る"
-                onClick={() => setMode('calendar')}
+                onClick={() => setMode(formReturnMode)}
                 type="button"
               >
                 <IconArrowLeft />

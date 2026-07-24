@@ -1725,9 +1725,9 @@ function App() {
 
             <div className={styles.recordsScrollArea}>
               <div className={styles.recordsOverviewHeader}>
-                <h2 className={styles.recordsOverviewTitle}>記録</h2>
+                <h2 className={styles.recordsOverviewTitle}>Records</h2>
                 <button type="button" className={styles.viewAllButton} onClick={openNotebook}>
-                  すべて見る <span aria-hidden="true">›</span>
+                  All <span aria-hidden="true">›</span>
                 </button>
               </div>
               {/* 選択された日付の記録表示 */}

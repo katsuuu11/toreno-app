@@ -73,6 +73,12 @@ function RecordNotebook({
   const [currentDate, setCurrentDate] = useState(initialDate);
   const [filterColor, setFilterColor] = useState(null);
   const [fanState, setFanState] = useState({ open: false, activeColor: null });
+  const [pageMotion, setPageMotion] = useState({
+    offset: 0,
+    dragging: false,
+    phase: 'idle',
+  });
+  const pageStackRef = useRef(null);
   const pointerRef = useRef({
     id: null,
     timer: null,
@@ -80,7 +86,18 @@ function RecordNotebook({
     originY: 0,
     activeColor: null,
   });
-  const swipeRef = useRef({ id: null, startX: 0, startY: 0 });
+  const swipeRef = useRef({
+    id: null,
+    startX: 0,
+    startY: 0,
+    axis: null,
+  });
+  const motionRef = useRef({
+    nextIndex: null,
+    exitOffset: 0,
+    frameOne: null,
+    frameTwo: null,
+  });
 
   const allDates = useMemo(
     () =>
@@ -135,7 +152,15 @@ function RecordNotebook({
         originY: 0,
         activeColor: null,
       };
-      swipeRef.current = { id: null, startX: 0, startY: 0 };
+      swipeRef.current = { id: null, startX: 0, startY: 0, axis: null };
+      if (motionRef.current.frameOne) cancelAnimationFrame(motionRef.current.frameOne);
+      if (motionRef.current.frameTwo) cancelAnimationFrame(motionRef.current.frameTwo);
+      motionRef.current = {
+        nextIndex: null,
+        exitOffset: 0,
+        frameOne: null,
+        frameTwo: null,
+      };
     },
     []
   );
@@ -145,12 +170,6 @@ function RecordNotebook({
   const visibleRecords = dayRecords
     .map((record, originalIndex) => ({ record, originalIndex }))
     .filter(({ record }) => !filterColor || record.color === filterColor);
-
-  const movePage = (delta) => {
-    if (pageIndex < 0) return;
-    const nextIndex = Math.max(0, Math.min(filteredDates.length - 1, pageIndex + delta));
-    if (nextIndex !== pageIndex) setCurrentDate(filteredDates[nextIndex]);
-  };
 
   const clearFilterPointer = () => {
     if (pointerRef.current.timer) clearTimeout(pointerRef.current.timer);
@@ -165,6 +184,7 @@ function RecordNotebook({
   };
 
   const handleFilterDown = (event) => {
+    if (pageMotion.phase !== 'idle') return;
     if (event.pointerType === 'mouse' && event.button !== 0) return;
     event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -223,9 +243,44 @@ function RecordNotebook({
   };
 
   const handlePageDown = (event) => {
-    if (event.target.closest('button')) return;
-    swipeRef.current = { id: event.pointerId, startX: event.clientX, startY: event.clientY };
+    if (event.target.closest('button') || pageMotion.phase !== 'idle') return;
+    swipeRef.current = {
+      id: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      axis: null,
+    };
     event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const handlePageMove = (event) => {
+    const swipe = swipeRef.current;
+    if (swipe.id !== event.pointerId) return;
+    const dx = event.clientX - swipe.startX;
+    const dy = event.clientY - swipe.startY;
+
+    if (!swipe.axis && Math.hypot(dx, dy) >= 8) {
+      swipe.axis = Math.abs(dx) > Math.abs(dy) * 1.2 ? 'horizontal' : 'vertical';
+    }
+    if (swipe.axis !== 'horizontal') return;
+
+    event.preventDefault();
+    const isLatestEdge = pageIndex === 0 && dx > 0;
+    const isOldestEdge = pageIndex === filteredDates.length - 1 && dx < 0;
+    const resistedOffset = isLatestEdge || isOldestEdge ? dx * 0.24 : dx;
+    setPageMotion({ offset: resistedOffset, dragging: true, phase: 'idle' });
+  };
+
+  const resetSwipe = () => {
+    swipeRef.current = { id: null, startX: 0, startY: 0, axis: null };
+  };
+
+  const returnPageToOrigin = () => {
+    if (Math.abs(pageMotion.offset) < 0.5) {
+      setPageMotion({ offset: 0, dragging: false, phase: 'idle' });
+      return;
+    }
+    setPageMotion({ offset: 0, dragging: false, phase: 'return' });
   };
 
   const handlePageEnd = (event) => {
@@ -236,36 +291,85 @@ function RecordNotebook({
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
-    swipeRef.current = { id: null, startX: 0, startY: 0 };
-    if (Math.abs(dx) >= SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(dy) * 1.2) {
-      movePage(dx < 0 ? 1 : -1);
+    resetSwipe();
+
+    const isHorizontal = swipe.axis === 'horizontal';
+    const passedThreshold = Math.abs(dx) >= SWIPE_THRESHOLD;
+    const nextIndex = pageIndex + (dx < 0 ? 1 : -1);
+    const hasNextPage = nextIndex >= 0 && nextIndex < filteredDates.length;
+    if (!isHorizontal || !passedThreshold || Math.abs(dx) <= Math.abs(dy) * 1.2 || !hasNextPage) {
+      returnPageToOrigin();
+      return;
     }
+
+    const exitDistance = (pageStackRef.current?.offsetWidth || window.innerWidth) + 48;
+    const exitOffset = dx < 0 ? -exitDistance : exitDistance;
+    motionRef.current.nextIndex = nextIndex;
+    motionRef.current.exitOffset = exitOffset;
+    setPageMotion({ offset: exitOffset, dragging: false, phase: 'exit' });
   };
 
   const cancelPagePointer = (event) => {
     if (swipeRef.current.id !== event.pointerId) return;
-    swipeRef.current = { id: null, startX: 0, startY: 0 };
+    resetSwipe();
+    returnPageToOrigin();
+  };
+
+  const handlePageTransitionEnd = (event) => {
+    if (event.target !== event.currentTarget || event.propertyName !== 'transform') return;
+
+    if (pageMotion.phase === 'exit') {
+      const nextDate = filteredDates[motionRef.current.nextIndex];
+      if (!nextDate) {
+        motionRef.current.nextIndex = null;
+        setPageMotion({ offset: 0, dragging: false, phase: 'idle' });
+        return;
+      }
+
+      const entranceOffset = -motionRef.current.exitOffset;
+      setCurrentDate(nextDate);
+      setPageMotion({ offset: entranceOffset, dragging: false, phase: 'prepare' });
+      motionRef.current.frameOne = requestAnimationFrame(() => {
+        motionRef.current.frameTwo = requestAnimationFrame(() => {
+          setPageMotion({ offset: 0, dragging: false, phase: 'enter' });
+        });
+      });
+      return;
+    }
+
+    if (pageMotion.phase === 'enter' || pageMotion.phase === 'return') {
+      motionRef.current.nextIndex = null;
+      motionRef.current.exitOffset = 0;
+      setPageMotion({ offset: 0, dragging: false, phase: 'idle' });
+    }
   };
 
   return (
-    <section className={styles.screen} aria-label="記録ノート">
+    <section className={styles.screen} aria-label="All Records">
       <header className={styles.header}>
         <button type="button" className={styles.backButton} onClick={onBack} aria-label="カレンダーに戻る">
           <span aria-hidden="true">‹</span>
         </button>
-        <h1 className={styles.title}>記録ノート</h1>
+        <h1 className={styles.title}>All Records</h1>
       </header>
 
       <div className={styles.notebookArea}>
-        <div className={styles.pageEdge} aria-hidden="true" />
         <div
-          className={styles.page}
+          ref={pageStackRef}
+          className={`${styles.pageStack} ${
+            pageMotion.dragging ? styles.pageStackDragging : ''
+          } ${pageMotion.phase === 'prepare' ? styles.pageStackPrepare : ''}`}
+          style={{ transform: `translate3d(${pageMotion.offset}px, 0, 0)` }}
           onPointerDown={handlePageDown}
+          onPointerMove={handlePageMove}
           onPointerUp={handlePageEnd}
           onPointerCancel={cancelPagePointer}
+          onTransitionEnd={handlePageTransitionEnd}
         >
+          <div className={styles.pageEdge} aria-hidden="true" />
+          <div className={styles.page}>
           {filteredDates.length > 0 ? (
-            <div className={styles.pageContent} key={currentDate}>
+            <div className={styles.pageContent}>
               <h2 className={styles.date}>{formatDateLabel(currentDate)}</h2>
               <div className={styles.recordList}>
                 {visibleRecords.map(({ record, originalIndex }) => (
@@ -315,6 +419,7 @@ function RecordNotebook({
               )}
             </div>
           )}
+          </div>
         </div>
 
         <button

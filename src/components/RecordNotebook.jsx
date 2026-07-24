@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { loadImageBlob } from '../services/localDb';
 import styles from './RecordNotebook.module.css';
 
@@ -168,12 +168,31 @@ function RecordNotebook({
 
   const pageIndex = filteredDates.indexOf(currentDate);
   const pageDates = [
-    pageIndex > 0 ? filteredDates[pageIndex - 1] : null,
-    pageIndex >= 0 ? filteredDates[pageIndex] : null,
     pageIndex >= 0 && pageIndex < filteredDates.length - 1
       ? filteredDates[pageIndex + 1]
       : null,
+    pageIndex >= 0 ? filteredDates[pageIndex] : null,
+    pageIndex > 0 ? filteredDates[pageIndex - 1] : null,
   ];
+
+  useLayoutEffect(() => {
+    if (pageMotion.phase !== 'reset') return undefined;
+
+    // Commit the no-transition center reset before transitions are enabled again.
+    // Reading layout prevents the browser from coalescing both states into a jump.
+    void pageViewportRef.current?.offsetWidth;
+    motionRef.current.resetFrame = requestAnimationFrame(() => {
+      motionRef.current.nextIndex = null;
+      setPageMotion({ offset: 0, dragging: false, phase: 'idle' });
+    });
+
+    return () => {
+      if (motionRef.current.resetFrame) {
+        cancelAnimationFrame(motionRef.current.resetFrame);
+        motionRef.current.resetFrame = null;
+      }
+    };
+  }, [pageMotion.phase]);
 
   const clearFilterPointer = () => {
     if (pointerRef.current.timer) clearTimeout(pointerRef.current.timer);
@@ -274,8 +293,8 @@ function RecordNotebook({
     if (swipe.axis !== 'horizontal') return;
 
     event.preventDefault();
-    const isLatestEdge = pageIndex === 0 && dx > 0;
-    const isOldestEdge = pageIndex === filteredDates.length - 1 && dx < 0;
+    const isLatestEdge = pageIndex === 0 && dx < 0;
+    const isOldestEdge = pageIndex === filteredDates.length - 1 && dx > 0;
     const resistedOffset = isLatestEdge || isOldestEdge ? dx * 0.24 : dx;
     setPageMotion({ offset: resistedOffset, dragging: true, phase: 'idle' });
   };
@@ -313,7 +332,7 @@ function RecordNotebook({
     const viewportWidth = pageViewportRef.current?.offsetWidth || window.innerWidth;
     const passedDistanceThreshold = Math.abs(dx) >= viewportWidth * 0.22;
     const passedVelocityThreshold = Math.abs(dx / elapsed) >= 0.55 && Math.abs(dx) >= 18;
-    const nextIndex = pageIndex + (dx < 0 ? 1 : -1);
+    const nextIndex = pageIndex + (dx < 0 ? -1 : 1);
     const hasNextPage = nextIndex >= 0 && nextIndex < filteredDates.length;
     if (
       !isHorizontal ||
@@ -352,10 +371,6 @@ function RecordNotebook({
 
       setCurrentDate(nextDate);
       setPageMotion({ offset: 0, dragging: false, phase: 'reset' });
-      motionRef.current.resetFrame = requestAnimationFrame(() => {
-        motionRef.current.nextIndex = null;
-        setPageMotion({ offset: 0, dragging: false, phase: 'idle' });
-      });
       return;
     }
 

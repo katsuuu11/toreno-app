@@ -1913,12 +1913,6 @@ function App() {
               </div>
 
               <div className={styles.notesWrapper}>
-                {!noteHtml.replace(/<[^>]*>/g, '').trim() && (
-                  <div className={styles.editorPlaceholder} aria-hidden="true">
-                    <span>ターゲット：ベンチプレス 80kg x 10...</span>
-                    <span>記録をここに自由に記入してください</span>
-                  </div>
-                )}
                 <div
                   ref={editorRef}
                   contentEditable
@@ -1959,8 +1953,7 @@ function App() {
                 />
               </div>
 
-              <section className={styles.attachmentsSection} aria-labelledby="attachments-title">
-                <h2 id="attachments-title" className={styles.attachmentsTitle}>Attachments</h2>
+              <section className={styles.attachmentsSection} aria-label="画像">
                 <div className={styles.imagePreview}>
                   <input
                     type="file"

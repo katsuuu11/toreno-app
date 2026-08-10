@@ -787,47 +787,29 @@
 }
 
 .notesWrapper {
-  position: relative;
   flex: 1;
   display: flex;
   flex-direction: column;
   min-height: 0;
   overflow: hidden;
-  gap: 0;
-}
-
-.editorPlaceholder {
-  position: absolute;
-  z-index: 0;
-  top: 0.75rem;
-  left: 0.75rem;
-  right: 0.75rem;
-  display: flex;
-  flex-direction: column;
-  color: rgba(117, 119, 126, 0.45);
-  font-size: 0.82rem;
-  font-style: italic;
-  line-height: 1.55;
-  pointer-events: none;
+  gap: 0.75rem;
 }
 
 .editor {
   font-family: inherit;
   flex: 1 1 0;
   width: 100%;
-  min-height: 190px;
+  min-height: 300px;
   max-height: 100%;
   padding: 0.75rem;
-  font-size: 0.9rem;
+  font-size: 1rem;
   line-height: 1.625;
   background: transparent;
-  border: 1px solid transparent;
+  border: 1px solid rgba(229, 231, 235, 0.5);
   border-radius: 0.5rem;
   outline: none;
   transition: border-color 0.15s ease;
-  color: #1a1c1b;
-  position: relative;
-  z-index: 1;
+  color: #111827;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   overflow-y: auto;
@@ -835,21 +817,12 @@
 }
 
 .editor:focus {
-  border-color: #1e2a44;
+  border-color: #e5e7eb;
 }
 
 .attachmentsSection {
   flex: 0 0 auto;
   padding: 0 0.25rem;
-}
-
-.attachmentsTitle {
-  margin: 0 0 1rem;
-  color: #45464d;
-  font-family: 'Hanken Grotesk', 'Noto Sans JP', sans-serif;
-  font-size: 0.72rem;
-  font-weight: 400;
-  letter-spacing: 0.1em;
 }
 
 .imagePreview {

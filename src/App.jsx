@@ -1837,6 +1837,20 @@ function App() {
               </div>
 
               <div className={styles.headerActions}>
+                <input
+                  type="file"
+                  id="image-upload"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className={styles.hiddenFileInput}
+                />
+                <label
+                  htmlFor="image-upload"
+                  className={styles.headerImageButton}
+                  aria-label="画像を追加"
+                >
+                  <IconCamera />
+                </label>
                 <button
                   onClick={handleSave}
                   title={UI_TEXT.saveDone}
@@ -1951,22 +1965,9 @@ function App() {
                   }}
                   className={styles.editor}
                 />
-              </div>
 
-              <section className={styles.attachmentsSection} aria-label="画像">
-                <div className={styles.imagePreview}>
-                  <input
-                    type="file"
-                    id="image-upload"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    className={styles.hiddenFileInput}
-                  />
-                  <label htmlFor="image-upload" className={styles.addImageButton}>
-                    <IconCamera />
-                    <span>Add</span>
-                  </label>
-                  {imagePreviewUrl && (
+                {imagePreviewUrl && (
+                  <div className={styles.imagePreview}>
                     <div className={styles.imagePreviewItem}>
                       <button
                         type="button"
@@ -1991,9 +1992,9 @@ function App() {
                         ×
                       </button>
                     </div>
-                  )}
-                </div>
-              </section>
+                  </div>
+                )}
+              </div>
 
             </main>
           </div>

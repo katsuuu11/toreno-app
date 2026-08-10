@@ -1,0 +1,223 @@
+.screen {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #f1eee5;
+  color: #333;
+}
+
+.header {
+  flex: 0 0 auto;
+  position: relative;
+  z-index: 30;
+  min-height: calc(env(safe-area-inset-top, 0px) + 58px);
+  padding: env(safe-area-inset-top, 0px) 1rem 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(247, 247, 249, 0.95);
+  border-bottom: 1px solid rgba(120, 112, 92, 0.12);
+  backdrop-filter: blur(8px);
+}
+
+.title { font-size: 1.05rem; letter-spacing: 0.06em; }
+.backButton {
+  position: absolute;
+  left: 0.7rem;
+  bottom: 5px;
+  width: 48px;
+  height: 48px;
+  border: 0;
+  background: transparent;
+  color: #5f6470;
+  font-size: 2.25rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.notebookArea {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  margin: 1rem 1.25rem 0.4rem;
+}
+
+.pageViewport {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  touch-action: pan-y;
+}
+
+.pageTrack {
+  display: flex;
+  width: 300%;
+  height: 100%;
+  transition: transform 280ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+  touch-action: pan-y;
+}
+
+.pageTrackDragging,
+.pageTrackReset {
+  transition: none;
+}
+
+.pageShell,
+.pagePlaceholder {
+  position: relative;
+  flex: 0 0 33.333333%;
+  width: 33.333333%;
+  height: 100%;
+  padding: 0 0.25rem;
+}
+
+.emptyPage {
+  height: 100%;
+  overflow: hidden;
+  border: 1px solid #ddd7c6;
+  border-radius: 10px;
+  background: repeating-linear-gradient(to bottom, #fdfbf4 0, #fdfbf4 27px, #e9e4d4 27px, #e9e4d4 28px);
+  box-shadow: 0 10px 24px rgba(60, 52, 30, 0.13);
+}
+
+.pageEdge {
+  position: absolute;
+  z-index: 1;
+  top: 6%;
+  right: -8px;
+  bottom: 6%;
+  width: 14px;
+  border: 1px solid #ddd7c6;
+  border-left: 0;
+  border-radius: 0 9px 9px 0;
+  background: #fbf9f2;
+  box-shadow: 4px 7px 12px rgba(60, 52, 30, 0.06);
+}
+
+.page {
+  position: relative;
+  z-index: 2;
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  border: 1px solid #ddd7c6;
+  border-radius: 10px;
+  background: repeating-linear-gradient(to bottom, #fdfbf4 0, #fdfbf4 27px, #e9e4d4 27px, #e9e4d4 28px);
+  box-shadow: 0 10px 24px rgba(60, 52, 30, 0.13);
+  -webkit-overflow-scrolling: touch;
+}
+
+.page::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 35px;
+  width: 1px;
+  background: rgba(214, 88, 74, 0.38);
+  pointer-events: none;
+}
+
+.pageContent { padding: 1.45rem 1rem 1.5rem 2.85rem; }
+.date {
+  display: inline-block;
+  margin-bottom: 1rem;
+  padding-bottom: 2px;
+  border-bottom: 2px solid #d8d2bf;
+  color: #5c5747;
+  font-size: 0.88rem;
+  letter-spacing: 0.04em;
+}
+.recordList { display: flex; flex-direction: column; gap: 0.85rem; }
+.recordCard {
+  padding: 0.8rem 0.85rem;
+  border: 1px solid #e6e1d1;
+  border-left: 5px solid var(--record-color, #1e90ff);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 1px 3px rgba(60, 52, 30, 0.07);
+  overflow-wrap: anywhere;
+}
+.recordHeader { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.65rem; }
+.time { color: #8f8a79; font-size: 0.7rem; letter-spacing: 0.06em; }
+.part { font-size: 1rem; }
+.actions { display: flex; gap: 0.35rem; flex: 0 0 auto; }
+.editButton, .deleteButton {
+  min-height: 32px;
+  padding: 0.25rem 0.65rem;
+  border: 1px solid #d8d2bf;
+  border-radius: 999px;
+  background: transparent;
+  color: #615c4d;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.deleteButton { color: #b5473c; }
+.note { margin-top: 0.45rem; color: #5c5747; font-size: 0.84rem; line-height: 1.65; }
+.note :where(p, div, blockquote, pre) { margin: 0; }
+.note :where(ul, ol) { padding-left: 1.2rem; }
+.imageButton { margin-top: 0.65rem; padding: 0; border: 0; background: transparent; cursor: pointer; }
+.image { width: 88px; height: 88px; display: block; object-fit: cover; border: 1px solid #ded8c7; border-radius: 5px; box-shadow: 0 2px 5px rgba(60, 52, 30, 0.14); }
+
+.filterButton {
+  position: absolute;
+  z-index: 22;
+  top: 1rem;
+  right: 1rem;
+  width: 50px;
+  height: 50px;
+  border: 3px solid #fffdf6;
+  border-radius: 50%;
+  background: var(--filter-color);
+  box-shadow: 0 3px 8px rgba(60, 52, 30, 0.28), inset 0 -2px 4px rgba(0, 0, 0, 0.08);
+  touch-action: none;
+  cursor: pointer;
+}
+.allColorsMark { display: block; width: 16px; height: 16px; margin: auto; border: 2px solid #aaa491; border-radius: 50%; }
+.fanOverlay { position: fixed; z-index: 18; inset: 0; background: rgba(253, 251, 244, 0.58); backdrop-filter: blur(1.5px); }
+.fanColor {
+  position: absolute;
+  z-index: 21;
+  top: calc(1rem + 25px - 13px);
+  right: calc(1rem + 25px - 13px);
+  width: 26px;
+  height: 26px;
+  border: 2px solid #fffdf6;
+  border-radius: 50%;
+  background: var(--fan-color);
+  box-shadow: 0 4px 10px rgba(60, 52, 30, 0.25);
+  transform: translate(var(--fan-x), var(--fan-y));
+  pointer-events: none;
+  transition: transform 0.08s ease;
+}
+.fanColorActive { transform: translate(var(--fan-x), var(--fan-y)) scale(1.3); }
+.pageIndicator {
+  flex: 0 0 auto;
+  min-height: calc(env(safe-area-inset-bottom, 0px) + 42px);
+  padding: 0.4rem 0 calc(env(safe-area-inset-bottom, 0px) + 0.7rem);
+  color: #8f8a79;
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  text-align: center;
+}
+.emptyState { min-height: 100%; padding: 5rem 1.5rem 2rem 2.7rem; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.5rem; color: #6b6656; text-align: center; }
+.emptyState p { font-size: 0.85rem; }
+.emptyState button { margin-top: 0.4rem; padding: 0.55rem 0.9rem; border: 1px solid #cfc8b5; border-radius: 999px; background: #fffdf6; color: #5c5747; font-weight: 700; cursor: pointer; }
+
+@media (max-width: 380px) {
+  .notebookArea { margin-inline: 0.75rem 1rem; }
+  .pageContent { padding-right: 0.7rem; padding-left: 2.55rem; }
+  .actions { flex-direction: column; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pageTrack {
+    transition-duration: 1ms;
+  }
+}

@@ -332,6 +332,35 @@
   padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 6rem);
 }
 
+.recordsOverviewHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 1rem 0.65rem;
+  padding: 0 0.25rem;
+}
+
+.recordsOverviewTitle {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.viewAllButton {
+  min-height: 40px;
+  padding: 0.35rem 0.2rem 0.35rem 0.75rem;
+  border: 0;
+  background: transparent;
+  color: #1e78dd;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.viewAllButton span {
+  margin-left: 0.2rem;
+  font-size: 1.2rem;
+}
+
 .recordsSection {
   background: #fff;
   border-radius: 16px;

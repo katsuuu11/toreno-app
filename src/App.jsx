@@ -122,25 +122,31 @@ const supportsMonthInput = () => {
   return input.type === 'month' && input.value === '2026-07';
 };
 
-const DEFAULT_RECORD_COLOR = '#c34a36';
+const DEFAULT_RECORD_COLOR = '#e74c3c';
 const COLOR_OPTIONS = [
   { id: 'red', label: '赤', color: DEFAULT_RECORD_COLOR },
-  { id: 'green', label: '緑', color: '#5b7a58' },
-  { id: 'yellow', label: '黄', color: '#c9a66b' },
-  { id: 'purple', label: '紫', color: '#6D5B97' },
-  { id: 'blue', label: '青', color: '#4a5d7a' },
-  { id: 'pink', label: 'ピンク', color: '#D17B8F' },
-  { id: 'black', label: '黒', color: '#333333' },
+  { id: 'green', label: '緑', color: '#27ae60' },
+  { id: 'yellow', label: '黄', color: '#f1c40f' },
+  { id: 'purple', label: '紫', color: '#9b59b6' },
+  { id: 'blue', label: '青', color: '#2980b9' },
+  { id: 'pink', label: 'ピンク', color: '#e91e63' },
+  { id: 'black', label: '黒', color: '#2c3e50' },
 ];
 
 const LEGACY_RECORD_COLORS = Object.freeze({
   '#e74c3c': DEFAULT_RECORD_COLOR,
-  '#2ecc71': '#5b7a58',
-  '#f1c40f': '#c9a66b',
-  '#8e44ad': '#6D5B97',
-  '#1a2996': '#4a5d7a',
-  '#ff66b3': '#D17B8F',
-  '#000000': '#333333',
+  '#c34a36': DEFAULT_RECORD_COLOR,
+  '#2ecc71': '#27ae60',
+  '#5b7a58': '#27ae60',
+  '#c9a66b': '#f1c40f',
+  '#8e44ad': '#9b59b6',
+  '#6d5b97': '#9b59b6',
+  '#1a2996': '#2980b9',
+  '#4a5d7a': '#2980b9',
+  '#ff66b3': '#e91e63',
+  '#d17b8f': '#e91e63',
+  '#000000': '#2c3e50',
+  '#333333': '#2c3e50',
 });
 
 const normalizeRecordColor = (color) =>
@@ -259,13 +265,6 @@ const IconPlus = () => (
   >
     <line x1="12" y1="5" x2="12" y2="19" />
     <line x1="5" y1="12" x2="19" y2="12" />
-  </svg>
-);
-
-const IconCalendar = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="4" y="5" width="16" height="15" rx="1.5" />
-    <path d="M8 3v4M16 3v4M4 9h16" />
   </svg>
 );
 
@@ -1744,6 +1743,14 @@ function App() {
         {/* ヘッダー */}
         {mode === 'calendar' && (
           <header className={styles.calendarHeader}>
+            <button
+              type="button"
+              className={styles.headerNotebookButton}
+              aria-label="すべての記録を開く"
+              onClick={openNotebook}
+            >
+              <IconNotebook />
+            </button>
             <h1 className={styles.appHeader}>TRENO</h1>
             <button
               type="button"
@@ -1769,12 +1776,6 @@ function App() {
             </div>
 
             <div className={styles.recordsScrollArea}>
-              <div className={styles.recordsOverviewHeader}>
-                <h2 className={styles.recordsOverviewTitle}>Records</h2>
-                <button type="button" className={styles.viewAllButton} onClick={openNotebook}>
-                  All <span aria-hidden="true">›</span>
-                </button>
-              </div>
               {/* 選択された日付の記録表示 */}
               {selectedRecords.length > 0 && (
                 <div className={styles.recordsSection}>
@@ -2034,17 +2035,6 @@ function App() {
           <button onClick={handleAddRecord} className={styles.fab} type="button" aria-label="記録を追加">
             <IconPlus />
           </button>
-        )}
-
-        {mode === 'calendar' && (
-          <nav className={styles.bottomNav} aria-label="メインナビゲーション">
-            <button type="button" className={`${styles.bottomNavButton} ${styles.bottomNavActive}`} aria-label="カレンダー">
-              <IconCalendar />
-            </button>
-            <button type="button" className={styles.bottomNavButton} onClick={openNotebook} aria-label="記録ノート">
-              <IconNotebook />
-            </button>
-          </nav>
         )}
 
         <ImageLightboxModal

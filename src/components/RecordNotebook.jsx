@@ -3,9 +3,9 @@ import { loadImageBlob } from '../services/localDb';
 import styles from './RecordNotebook.module.css';
 
 const LONG_PRESS_MS = 360;
-const FAN_RADIUS = 112;
-const FAN_START_DEG = 100;
-const FAN_END_DEG = 174;
+const FAN_RADIUS = 80;
+const FAN_START_DEG = 180;
+const FAN_END_DEG = 270;
 const FAN_SELECT_DISTANCE = 48;
 const FAN_MIN_DISTANCE = 28;
 
@@ -449,7 +449,9 @@ function RecordNotebook({
     <section className={styles.screen} aria-label="All Records">
       <header className={styles.header}>
         <button type="button" className={styles.backButton} onClick={onBack} aria-label="カレンダーに戻る">
-          <span aria-hidden="true">‹</span>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="m15 18-6-6 6-6" />
+          </svg>
         </button>
         <h1 className={styles.title}>All Records</h1>
       </header>
@@ -510,6 +512,20 @@ function RecordNotebook({
       <footer className={styles.pageIndicator} aria-live="polite">
         {filteredDates.length > 0 ? `${pageIndex + 1} / ${filteredDates.length}` : `0 / ${allDates.length}`}
       </footer>
+
+      <nav className={styles.bottomNav} aria-label="メインナビゲーション">
+        <button type="button" className={styles.navButton} onClick={onBack} aria-label="カレンダー">
+          <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <rect x="4" y="5" width="16" height="15" rx="1.5" />
+            <path d="M8 3v4M16 3v4M4 9h16" />
+          </svg>
+        </button>
+        <button type="button" className={`${styles.navButton} ${styles.navButtonActive}`} aria-label="記録ノート" aria-current="page">
+          <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11v16H6.5A2.5 2.5 0 0 0 4 21.5zM20 5.5A2.5 2.5 0 0 0 17.5 3H13v16h4.5a2.5 2.5 0 0 1 2.5 2.5z" />
+          </svg>
+        </button>
+      </nav>
     </section>
   );
 }

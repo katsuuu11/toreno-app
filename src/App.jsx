@@ -236,6 +236,19 @@ const IconPlus = () => (
   </svg>
 );
 
+const IconCalendar = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="4" y="5" width="16" height="15" rx="1.5" />
+    <path d="M8 3v4M16 3v4M4 9h16" />
+  </svg>
+);
+
+const IconNotebook = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M6 4.5h12v15H6zM9 4.5v15M12 8h3" />
+  </svg>
+);
+
 const IconEdit = () => (
   <svg
     width="16"
@@ -1186,7 +1199,8 @@ function App() {
     setInputParts(buffer.part || '');
     setNoteHtml(buffer.note || '');
     setSelectedColor(buffer.color || '#e74c3c');
-    setStartTime('');
+    // 入力画面に表示した時刻と、保存される開始時刻を一致させる。
+    setStartTime(getNowHHmm());
     clearFormImageState();
     setFormReturnMode('calendar');
     setMode('form');
@@ -1338,7 +1352,9 @@ function App() {
     const existingStartTime =
       editingIndex !== null ? records[ymd]?.records?.[editingIndex]?.startTime : '';
     const resolvedStartTime =
-      editingIndex !== null ? existingStartTime || startTime || '' : getNowHHmm();
+      editingIndex !== null
+        ? existingStartTime || startTime || ''
+        : startTime || getNowHHmm();
     const cleanHtml =
       sanitizeHtml(noteHtml || '').trim() || '<p><br></p>';
     const noteText = cleanHtml
@@ -1738,8 +1754,7 @@ function App() {
                       month: 'long',
                       day: 'numeric',
                       weekday: 'short',
-                    })}{' '}
-                    の記録
+                    })}
                   </h3>
 
                   {/* 記録一覧 */}
@@ -1814,33 +1829,22 @@ function App() {
                 <IconArrowLeft />
               </button>
 
-              <div className={styles.headerTime}>{startTime}</div>
+              <div className={styles.headerTimestamp}>
+                <span className={styles.headerDate}>
+                  {formatDateKey(editingDate).replaceAll('-', '.')}
+                </span>
+                <span className={styles.headerTime}>{startTime || '--:--'}</span>
+              </div>
 
               <div className={styles.headerActions}>
-                <input
-                  type="file"
-                  id="image-upload"
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  style={{ display: 'none' }}
-                />
-
-                <label
-                  htmlFor="image-upload"
-                  className={styles.headerImageButton}
-                  aria-label="画像を追加"
-                >
-                  <IconCamera />
-                </label>
-
                 <button
                   onClick={handleSave}
                   title={UI_TEXT.saveDone}
+                  aria-label="記録を保存"
                   className={styles.headerSaveButton}
                   type="button"
                 >
                   <IconCheck />
-                  {UI_TEXT.saveDone}
                 </button>
               </div>
             </header>
@@ -1909,6 +1913,12 @@ function App() {
               </div>
 
               <div className={styles.notesWrapper}>
+                {!noteHtml.replace(/<[^>]*>/g, '').trim() && (
+                  <div className={styles.editorPlaceholder} aria-hidden="true">
+                    <span>ターゲット：ベンチプレス 80kg x 10...</span>
+                    <span>記録をここに自由に記入してください</span>
+                  </div>
+                )}
                 <div
                   ref={editorRef}
                   contentEditable
@@ -1947,9 +1957,23 @@ function App() {
                   }}
                   className={styles.editor}
                 />
+              </div>
 
-                {imagePreviewUrl && (
-                  <div className={styles.imagePreview}>
+              <section className={styles.attachmentsSection} aria-labelledby="attachments-title">
+                <h2 id="attachments-title" className={styles.attachmentsTitle}>Attachments</h2>
+                <div className={styles.imagePreview}>
+                  <input
+                    type="file"
+                    id="image-upload"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className={styles.hiddenFileInput}
+                  />
+                  <label htmlFor="image-upload" className={styles.addImageButton}>
+                    <IconCamera />
+                    <span>Add</span>
+                  </label>
+                  {imagePreviewUrl && (
                     <div className={styles.imagePreviewItem}>
                       <button
                         type="button"
@@ -1974,9 +1998,9 @@ function App() {
                         ×
                       </button>
                     </div>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              </section>
 
             </main>
           </div>
@@ -1984,9 +2008,20 @@ function App() {
 
         {/* フローティング追加ボタン（カレンダーモードでのみ表示） */}
         {mode === 'calendar' && (
-          <button onClick={handleAddRecord} className={styles.fab} type="button">
+          <button onClick={handleAddRecord} className={styles.fab} type="button" aria-label="記録を追加">
             <IconPlus />
           </button>
+        )}
+
+        {mode === 'calendar' && (
+          <nav className={styles.bottomNav} aria-label="メインナビゲーション">
+            <button type="button" className={`${styles.bottomNavButton} ${styles.bottomNavActive}`} aria-label="カレンダー">
+              <IconCalendar />
+            </button>
+            <button type="button" className={styles.bottomNavButton} onClick={openNotebook} aria-label="記録ノート">
+              <IconNotebook />
+            </button>
+          </nav>
         )}
 
         <ImageLightboxModal

@@ -122,15 +122,31 @@ const supportsMonthInput = () => {
   return input.type === 'month' && input.value === '2026-07';
 };
 
+const DEFAULT_RECORD_COLOR = '#c34a36';
 const COLOR_OPTIONS = [
-  { id: 'red', label: '赤', color: '#e74c3c' },
-  { id: 'green', label: '緑', color: '#2ecc71' },
-  { id: 'yellow', label: '黄', color: '#f1c40f' },
-  { id: 'purple', label: '紫', color: '#8e44ad' },
-  { id: 'blue', label: '青', color: '#1A2996' },
-  { id: 'pink', label: 'ピンク', color: '#ff66b3' },
-  { id: 'black', label: '黒', color: '#000000' },
+  { id: 'red', label: '赤', color: DEFAULT_RECORD_COLOR },
+  { id: 'green', label: '緑', color: '#5b7a58' },
+  { id: 'yellow', label: '黄', color: '#c9a66b' },
+  { id: 'purple', label: '紫', color: '#6D5B97' },
+  { id: 'blue', label: '青', color: '#4a5d7a' },
+  { id: 'pink', label: 'ピンク', color: '#D17B8F' },
+  { id: 'black', label: '黒', color: '#333333' },
 ];
+
+const LEGACY_RECORD_COLORS = Object.freeze({
+  '#e74c3c': DEFAULT_RECORD_COLOR,
+  '#2ecc71': '#5b7a58',
+  '#f1c40f': '#c9a66b',
+  '#8e44ad': '#6D5B97',
+  '#1a2996': '#4a5d7a',
+  '#ff66b3': '#D17B8F',
+  '#000000': '#333333',
+});
+
+const normalizeRecordColor = (color) =>
+  LEGACY_RECORD_COLORS[typeof color === 'string' ? color.toLowerCase() : ''] ||
+  color ||
+  DEFAULT_RECORD_COLOR;
 
 const getColorFanOptions = (currentColor) => {
   const visibleColors = COLOR_OPTIONS.filter((option) => option.color !== currentColor);
@@ -161,7 +177,7 @@ const stripEditBufferStartTimes = (buffers) => {
       }
 
       const { startTime: _startTime, ...rest } = buffer;
-      return [ymd, rest];
+      return [ymd, { ...rest, color: normalizeRecordColor(rest.color) }];
     })
   );
 };
@@ -181,13 +197,23 @@ const migrateRecords = (parsed) => {
   const migrated = {};
   Object.entries(parsed).forEach(([ymd, value]) => {
     if (Array.isArray(value)) {
-      migrated[ymd] = { records: value };
+      migrated[ymd] = {
+        records: value.map((record) => ({
+          ...record,
+          color: normalizeRecordColor(record?.color),
+        })),
+      };
     } else if (
       value &&
       typeof value === 'object' &&
       Array.isArray(value.records)
     ) {
-      migrated[ymd] = { records: value.records };
+      migrated[ymd] = {
+        records: value.records.map((record) => ({
+          ...record,
+          color: normalizeRecordColor(record?.color),
+        })),
+      };
     }
   });
   return migrated;
@@ -554,7 +580,7 @@ function App() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [editingDate, setEditingDate] = useState(null);
   const [inputParts, setInputParts] = useState('');
-  const [selectedColor, setSelectedColor] = useState('#e74c3c');
+  const [selectedColor, setSelectedColor] = useState(DEFAULT_RECORD_COLOR);
   const [startTime, setStartTime] = useState('');
   const [records, setRecords] = useState({});
   const [editBuffers, setEditBuffers] = useState({});
@@ -988,7 +1014,7 @@ function App() {
       setEditingIndex(null);
       setInputParts('');
       setNoteHtml('');
-      setSelectedColor('#e74c3c');
+      setSelectedColor(DEFAULT_RECORD_COLOR);
       setStartTime('');
       clearFormImageState();
     }
@@ -1198,7 +1224,7 @@ function App() {
     const buffer = editBuffers[ymd] || {};
     setInputParts(buffer.part || '');
     setNoteHtml(buffer.note || '');
-    setSelectedColor(buffer.color || '#e74c3c');
+    setSelectedColor(buffer.color || DEFAULT_RECORD_COLOR);
     // 入力画面に表示した時刻と、保存される開始時刻を一致させる。
     setStartTime(getNowHHmm());
     clearFormImageState();
@@ -1421,7 +1447,7 @@ function App() {
     setMode(formReturnMode);
     setInputParts('');
     setNoteHtml('');
-    setSelectedColor('#e74c3c');
+    setSelectedColor(DEFAULT_RECORD_COLOR);
     setEditingDate(null);
     setEditingIndex(null);
     setStartTime('');
@@ -1480,9 +1506,12 @@ function App() {
           loadRecords(),
           loadEditBuffers(),
         ]);
+        const paletteMigratedRecords = migrateRecords(loadedRecords);
+        const didMigratePalette =
+          JSON.stringify(paletteMigratedRecords) !== JSON.stringify(loadedRecords);
         const { records: imageMigratedRecords, changed } =
-          await migrateRecordImagesToBlobs(loadedRecords);
-        if (changed) {
+          await migrateRecordImagesToBlobs(paletteMigratedRecords);
+        if (changed || didMigratePalette) {
           await saveRecords(imageMigratedRecords);
         }
         if (!isMounted) return;

@@ -3,9 +3,9 @@ import { loadImageBlob } from '../services/localDb';
 import styles from './RecordNotebook.module.css';
 
 const LONG_PRESS_MS = 360;
-const FAN_RADIUS = 112;
-const FAN_START_DEG = 100;
-const FAN_END_DEG = 174;
+const FAN_RADIUS = 92;
+const FAN_START_DEG = 180;
+const FAN_END_DEG = 270;
 const FAN_SELECT_DISTANCE = 48;
 const FAN_MIN_DISTANCE = 28;
 
@@ -18,6 +18,19 @@ const formatDateLabel = (ymd) => {
     weekday: 'short',
   });
 };
+
+const IconEdit = () => (
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M12 20h9" />
+    <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z" />
+  </svg>
+);
+
+const IconDelete = () => (
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v5M14 11v5" />
+  </svg>
+);
 
 const NotebookImage = memo(function NotebookImage({ imageId, onOpen }) {
   const [imageUrl, setImageUrl] = useState('');
@@ -418,8 +431,9 @@ function RecordNotebook({
                         type="button"
                         className={styles.editButton}
                         onClick={() => onEdit(record, originalIndex, ymd)}
+                        aria-label={`${record.part || '記録'}を編集`}
                       >
-                        編集
+                        <IconEdit />
                       </button>
                       <button
                         type="button"
@@ -427,7 +441,7 @@ function RecordNotebook({
                         onClick={() => onDelete(ymd, originalIndex)}
                         aria-label={`${record.part || '記録'}を削除`}
                       >
-                        削除
+                        <IconDelete />
                       </button>
                     </div>
                   </div>
@@ -446,12 +460,14 @@ function RecordNotebook({
   };
 
   return (
-    <section className={styles.screen} aria-label="All Records">
+    <section className={styles.screen} aria-label="記録一覧">
       <header className={styles.header}>
         <button type="button" className={styles.backButton} onClick={onBack} aria-label="カレンダーに戻る">
-          <span aria-hidden="true">‹</span>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="m15 18-6-6 6-6" />
+          </svg>
         </button>
-        <h1 className={styles.title}>All Records</h1>
+        <h1 className={styles.title}>記録一覧</h1>
       </header>
 
       <div className={styles.notebookArea}>
@@ -510,6 +526,7 @@ function RecordNotebook({
       <footer className={styles.pageIndicator} aria-live="polite">
         {filteredDates.length > 0 ? `${pageIndex + 1} / ${filteredDates.length}` : `0 / ${allDates.length}`}
       </footer>
+
     </section>
   );
 }

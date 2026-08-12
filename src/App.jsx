@@ -122,15 +122,37 @@ const supportsMonthInput = () => {
   return input.type === 'month' && input.value === '2026-07';
 };
 
+const DEFAULT_RECORD_COLOR = '#e74c3c';
 const COLOR_OPTIONS = [
-  { id: 'red', label: '赤', color: '#e74c3c' },
-  { id: 'green', label: '緑', color: '#2ecc71' },
+  { id: 'red', label: '赤', color: DEFAULT_RECORD_COLOR },
+  { id: 'green', label: '緑', color: '#27ae60' },
   { id: 'yellow', label: '黄', color: '#f1c40f' },
-  { id: 'purple', label: '紫', color: '#8e44ad' },
-  { id: 'blue', label: '青', color: '#1A2996' },
-  { id: 'pink', label: 'ピンク', color: '#ff66b3' },
-  { id: 'black', label: '黒', color: '#000000' },
+  { id: 'purple', label: '紫', color: '#9b59b6' },
+  { id: 'blue', label: '青', color: '#2980b9' },
+  { id: 'pink', label: 'ピンク', color: '#e91e63' },
+  { id: 'black', label: '黒', color: '#2c3e50' },
 ];
+
+const LEGACY_RECORD_COLORS = Object.freeze({
+  '#e74c3c': DEFAULT_RECORD_COLOR,
+  '#c34a36': DEFAULT_RECORD_COLOR,
+  '#2ecc71': '#27ae60',
+  '#5b7a58': '#27ae60',
+  '#c9a66b': '#f1c40f',
+  '#8e44ad': '#9b59b6',
+  '#6d5b97': '#9b59b6',
+  '#1a2996': '#2980b9',
+  '#4a5d7a': '#2980b9',
+  '#ff66b3': '#e91e63',
+  '#d17b8f': '#e91e63',
+  '#000000': '#2c3e50',
+  '#333333': '#2c3e50',
+});
+
+const normalizeRecordColor = (color) =>
+  LEGACY_RECORD_COLORS[typeof color === 'string' ? color.toLowerCase() : ''] ||
+  color ||
+  DEFAULT_RECORD_COLOR;
 
 const getColorFanOptions = (currentColor) => {
   const visibleColors = COLOR_OPTIONS.filter((option) => option.color !== currentColor);
@@ -161,7 +183,7 @@ const stripEditBufferStartTimes = (buffers) => {
       }
 
       const { startTime: _startTime, ...rest } = buffer;
-      return [ymd, rest];
+      return [ymd, { ...rest, color: normalizeRecordColor(rest.color) }];
     })
   );
 };
@@ -181,13 +203,23 @@ const migrateRecords = (parsed) => {
   const migrated = {};
   Object.entries(parsed).forEach(([ymd, value]) => {
     if (Array.isArray(value)) {
-      migrated[ymd] = { records: value };
+      migrated[ymd] = {
+        records: value.map((record) => ({
+          ...record,
+          color: normalizeRecordColor(record?.color),
+        })),
+      };
     } else if (
       value &&
       typeof value === 'object' &&
       Array.isArray(value.records)
     ) {
-      migrated[ymd] = { records: value.records };
+      migrated[ymd] = {
+        records: value.records.map((record) => ({
+          ...record,
+          color: normalizeRecordColor(record?.color),
+        })),
+      };
     }
   });
   return migrated;
@@ -233,6 +265,12 @@ const IconPlus = () => (
   >
     <line x1="12" y1="5" x2="12" y2="19" />
     <line x1="5" y1="12" x2="19" y2="12" />
+  </svg>
+);
+
+const IconNotebook = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M6 4.5h12v15H6zM9 4.5v15M12 8h3" />
   </svg>
 );
 
@@ -541,7 +579,7 @@ function App() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [editingDate, setEditingDate] = useState(null);
   const [inputParts, setInputParts] = useState('');
-  const [selectedColor, setSelectedColor] = useState('#e74c3c');
+  const [selectedColor, setSelectedColor] = useState(DEFAULT_RECORD_COLOR);
   const [startTime, setStartTime] = useState('');
   const [records, setRecords] = useState({});
   const [editBuffers, setEditBuffers] = useState({});
@@ -975,7 +1013,7 @@ function App() {
       setEditingIndex(null);
       setInputParts('');
       setNoteHtml('');
-      setSelectedColor('#e74c3c');
+      setSelectedColor(DEFAULT_RECORD_COLOR);
       setStartTime('');
       clearFormImageState();
     }
@@ -1185,8 +1223,9 @@ function App() {
     const buffer = editBuffers[ymd] || {};
     setInputParts(buffer.part || '');
     setNoteHtml(buffer.note || '');
-    setSelectedColor(buffer.color || '#e74c3c');
-    setStartTime('');
+    setSelectedColor(buffer.color || DEFAULT_RECORD_COLOR);
+    // 入力画面に表示した時刻と、保存される開始時刻を一致させる。
+    setStartTime(getNowHHmm());
     clearFormImageState();
     setFormReturnMode('calendar');
     setMode('form');
@@ -1338,7 +1377,9 @@ function App() {
     const existingStartTime =
       editingIndex !== null ? records[ymd]?.records?.[editingIndex]?.startTime : '';
     const resolvedStartTime =
-      editingIndex !== null ? existingStartTime || startTime || '' : getNowHHmm();
+      editingIndex !== null
+        ? existingStartTime || startTime || ''
+        : startTime || getNowHHmm();
     const cleanHtml =
       sanitizeHtml(noteHtml || '').trim() || '<p><br></p>';
     const noteText = cleanHtml
@@ -1405,7 +1446,7 @@ function App() {
     setMode(formReturnMode);
     setInputParts('');
     setNoteHtml('');
-    setSelectedColor('#e74c3c');
+    setSelectedColor(DEFAULT_RECORD_COLOR);
     setEditingDate(null);
     setEditingIndex(null);
     setStartTime('');
@@ -1464,9 +1505,12 @@ function App() {
           loadRecords(),
           loadEditBuffers(),
         ]);
+        const paletteMigratedRecords = migrateRecords(loadedRecords);
+        const didMigratePalette =
+          JSON.stringify(paletteMigratedRecords) !== JSON.stringify(loadedRecords);
         const { records: imageMigratedRecords, changed } =
-          await migrateRecordImagesToBlobs(loadedRecords);
-        if (changed) {
+          await migrateRecordImagesToBlobs(paletteMigratedRecords);
+        if (changed || didMigratePalette) {
           await saveRecords(imageMigratedRecords);
         }
         if (!isMounted) return;
@@ -1699,6 +1743,14 @@ function App() {
         {/* ヘッダー */}
         {mode === 'calendar' && (
           <header className={styles.calendarHeader}>
+            <button
+              type="button"
+              className={styles.headerNotebookButton}
+              aria-label="すべての記録を開く"
+              onClick={openNotebook}
+            >
+              <IconNotebook />
+            </button>
             <h1 className={styles.appHeader}>TRENO</h1>
             <button
               type="button"
@@ -1724,12 +1776,6 @@ function App() {
             </div>
 
             <div className={styles.recordsScrollArea}>
-              <div className={styles.recordsOverviewHeader}>
-                <h2 className={styles.recordsOverviewTitle}>Records</h2>
-                <button type="button" className={styles.viewAllButton} onClick={openNotebook}>
-                  All <span aria-hidden="true">›</span>
-                </button>
-              </div>
               {/* 選択された日付の記録表示 */}
               {selectedRecords.length > 0 && (
                 <div className={styles.recordsSection}>
@@ -1738,8 +1784,7 @@ function App() {
                       month: 'long',
                       day: 'numeric',
                       weekday: 'short',
-                    })}{' '}
-                    の記録
+                    })}
                   </h3>
 
                   {/* 記録一覧 */}
@@ -1814,7 +1859,12 @@ function App() {
                 <IconArrowLeft />
               </button>
 
-              <div className={styles.headerTime}>{startTime}</div>
+              <div className={styles.headerTimestamp}>
+                <span className={styles.headerDate}>
+                  {formatDateKey(editingDate).replaceAll('-', '.')}
+                </span>
+                <span className={styles.headerTime}>{startTime || '--:--'}</span>
+              </div>
 
               <div className={styles.headerActions}>
                 <input
@@ -1822,9 +1872,8 @@ function App() {
                   id="image-upload"
                   accept="image/*"
                   onChange={handleImageUpload}
-                  style={{ display: 'none' }}
+                  className={styles.hiddenFileInput}
                 />
-
                 <label
                   htmlFor="image-upload"
                   className={styles.headerImageButton}
@@ -1832,15 +1881,14 @@ function App() {
                 >
                   <IconCamera />
                 </label>
-
                 <button
                   onClick={handleSave}
                   title={UI_TEXT.saveDone}
+                  aria-label="記録を保存"
                   className={styles.headerSaveButton}
                   type="button"
                 >
                   <IconCheck />
-                  {UI_TEXT.saveDone}
                 </button>
               </div>
             </header>
@@ -1984,7 +2032,7 @@ function App() {
 
         {/* フローティング追加ボタン（カレンダーモードでのみ表示） */}
         {mode === 'calendar' && (
-          <button onClick={handleAddRecord} className={styles.fab} type="button">
+          <button onClick={handleAddRecord} className={styles.fab} type="button" aria-label="記録を追加">
             <IconPlus />
           </button>
         )}

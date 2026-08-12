@@ -46,8 +46,8 @@
 /* レイアウト */
 .appContainer {
   font-family: 'Noto Sans JP', sans-serif;
-  background-color: #f7f7f9;
-  color: #333;
+  background-color: #f9f9f7;
+  color: #1a1c1b;
   line-height: 1.6;
   height: 100vh;
   height: 100dvh;
@@ -72,10 +72,12 @@
 
 /* ヘッダー */
 .appHeader {
-  font-size: 1.6rem;
+  font-size: 1.45rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #08152e;
   text-align: center;
-  margin-bottom: 0.25rem;
-  padding: 0.35rem 0;
+  padding: 0.65rem 0 0.8rem;
 }
 
 /* カレンダー */
@@ -85,8 +87,8 @@
   margin: 0 auto;
   background: #fff;
   border-radius: 16px;
-  padding: 1.5rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  padding: 1rem 1.25rem 1.25rem;
+  box-shadow: 0 4px 24px -4px rgba(30, 42, 68, 0.05), 0 0 1px rgba(30, 42, 68, 0.12);
   font-size: 1rem;
   box-sizing: border-box;
 }
@@ -95,7 +97,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  margin-bottom: 0.55rem;
   color: #333;
 }
 
@@ -105,8 +107,8 @@
   background: none;
   border: none;
   color: #333;
-  font-size: 1.75rem;
-  font-weight: bold;
+  font-size: 1.45rem;
+  font-weight: 300;
   line-height: 1;
   padding: 0.35rem 1rem;
   cursor: pointer;
@@ -132,10 +134,10 @@
   gap: 0.45rem;
   min-height: 44px;
   padding: 0.2rem 0.35rem;
-  border: 1px solid rgba(30, 144, 255, 0.22);
+  border: 1px solid #e2e3e1;
   border-radius: 999px;
-  background: #f8fbff;
-  color: #334155;
+  background: #fff;
+  color: #08152e;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
@@ -156,11 +158,11 @@
   border: none;
   border-radius: 999px;
   background: #fff;
-  color: #1f2937;
+  color: #08152e;
   cursor: pointer;
   font: inherit;
   font-size: 0.95rem;
-  font-weight: 800;
+  font-weight: 600;
   padding: 0.25rem 0.55rem;
   color-scheme: light;
 }
@@ -213,18 +215,18 @@
 .weekday {
   min-width: 0;
   text-align: center;
-  font-size: 0.9rem;
-  font-weight: bold;
-  padding: 0.5rem 0;
+  font-size: 0.82rem;
+  font-weight: 500;
+  padding: 0.35rem 0;
   color: #333;
 }
 
 .weekday.sunday {
-  color: red;
+  color: #e74c3c;
 }
 
 .weekday.saturday {
-  color: #3b82f6;
+  color: #2980b9;
 }
 
 .daysGrid {
@@ -237,7 +239,7 @@
 .dayTile {
   width: 100%;
   min-width: 0;
-  aspect-ratio: 1 / 1;
+  height: 48px;
   padding: 2px 0;
   box-sizing: border-box;
   display: flex;
@@ -260,11 +262,11 @@
 }
 
 .dayTile.sunday {
-  color: #e53935;
+  color: #e74c3c;
 }
 
 .dayTile.saturday {
-  color: #1e88e5;
+  color: #2980b9;
 }
 
 .dayTile.today {
@@ -273,7 +275,9 @@
 }
 
 .dayTile.selected {
-  background-color: #1e90ff;
+  width: min(48px, 100%);
+  justify-self: center;
+  background-color: #08152e;
   color: #fff;
   font-weight: bold;
 }
@@ -295,14 +299,14 @@
   justify-content: center;
   gap: 0.16em;
   min-block-size: 0.45em;
-  margin-top: 0.3em;
+  margin-top: 0.28em;
   flex: 0 0 auto;
 }
 
 .recordDot {
   --record-color: #1e90ff;
-  inline-size: 0.45em;
-  block-size: 0.45em;
+  inline-size: 0.42em;
+  block-size: 0.42em;
   border-radius: 50%;
   background: var(--record-color);
   flex: 0 0 auto;
@@ -319,7 +323,7 @@
 
 .calendarFixedArea {
   flex: 0 0 auto;
-  padding: 0 1rem 0.5rem;
+  padding: 0 1rem 1rem;
   overflow: hidden;
 }
 
@@ -329,7 +333,7 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
-  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 6rem);
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 7rem);
 }
 
 .recordsOverviewHeader {
@@ -341,8 +345,8 @@
 }
 
 .recordsOverviewTitle {
-  font-size: 1.1rem;
-  font-weight: 700;
+  font-size: 1.18rem;
+  font-weight: 600;
 }
 
 .viewAllButton {
@@ -350,7 +354,7 @@
   padding: 0.35rem 0.2rem 0.35rem 0.75rem;
   border: 0;
   background: transparent;
-  color: #1e78dd;
+  color: #08152e;
   cursor: pointer;
   font-size: 0.85rem;
   font-weight: 700;
@@ -365,29 +369,29 @@
   background: #fff;
   border-radius: 16px;
   padding: 1.5rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  margin: 0 1rem;
+  box-shadow: 0 4px 24px -4px rgba(30, 42, 68, 0.05), 0 0 1px rgba(30, 42, 68, 0.12);
+  margin: 0 1rem 1rem;
   overflow-anchor: none;
 }
 
 .recordsTitle {
-  font-size: 1.25rem;
+  font-size: 1rem;
   margin-bottom: 1rem;
-  font-weight: bold;
+  font-weight: 300;
 }
 
 .recordCard {
   font-family: inherit;
-  border: 1px solid #ccc;
+  border: 1px solid rgba(197, 198, 206, 0.35);
   padding: 1rem;
   background: #fff;
-  border-radius: 8px;
+  border-radius: 12px;
 }
 
 .swipeCardContainer {
   position: relative;
   margin-bottom: 1rem;
-  border-radius: 8px;
+  border-radius: 12px;
   overflow: hidden;
   overflow-anchor: none;
 }
@@ -511,7 +515,7 @@
   min-height: 100vh;
   min-height: 100dvh;
   min-height: 100svh;
-  background-color: #ffffff;
+  background-color: #f9f9f7;
   display: flex;
   flex-direction: column;
   max-width: 28rem;
@@ -527,28 +531,43 @@
   transform: translateX(-50%);
   width: min(28rem, 100%);
   z-index: 1200;
-  padding: calc(env(safe-area-inset-top, 0px) + 0.5rem) 1rem 0.5rem;
-  background: rgba(255, 255, 255, 0.96);
-  backdrop-filter: blur(6px);
-  border-bottom: 1px solid #e5e7eb;
+  min-height: calc(env(safe-area-inset-top, 0px) + 64px);
+  padding: env(safe-area-inset-top, 0px) 1rem 0;
+  background: rgba(249, 249, 247, 0.97);
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
-.headerTime {
+.headerTimestamp {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.2;
+}
+
+.headerDate {
   text-align: center;
-  font-size: 0.8rem;
-  color: #8b8b8b;
-  letter-spacing: 0.08em;
+  font-family: 'Hanken Grotesk', 'Noto Sans JP', sans-serif;
+  font-size: 0.72rem;
+  color: #75777e;
+  letter-spacing: 0.1em;
+}
+
+.headerTime {
+  font-family: 'Hanken Grotesk', 'Noto Sans JP', sans-serif;
+  font-size: 0.68rem;
+  color: rgba(117, 119, 126, 0.5);
+  letter-spacing: 0.04em;
 }
 
 .backButton {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #6b7280;
+  color: #45464d;
   background: transparent;
   border: none;
   cursor: pointer;
@@ -569,7 +588,7 @@
   min-height: 44px;
   min-width: 44px;
   padding: 0.625rem;
-  color: #6b7280;
+  color: #45464d;
   background: transparent;
   border: none;
   border-radius: 0.5rem;
@@ -580,24 +599,28 @@
   transition: color 0.15s ease, background-color 0.15s ease;
 }
 
-.headerImageButton:hover {
-  color: #1f2937;
-  background-color: #f3f4f6;
+.headerImageButton:hover,
+.headerImageButton:focus-visible {
+  color: #08152e;
+  background-color: #f4f4f2;
 }
+
 .headerSaveButton {
   font-family: inherit;
   min-height: 44px;
-  padding: 0.625rem 1.15rem;
+  width: 44px;
+  height: 44px;
+  padding: 0;
   font-size: 0.875rem;
   font-weight: 600;
-  color: #ffffff;
-  background-color: #1f2937;
+  color: #08152e;
+  background-color: transparent;
   border: none;
   border-radius: 9999px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
+  justify-content: center;
 }
 
 .backButton:hover {
@@ -609,8 +632,11 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: calc(env(safe-area-inset-top, 0px) + 5.25rem) 1.5rem 1.5rem;
-  gap: 1.5rem;
+  margin-top: calc(env(safe-area-inset-top, 0px) + 4rem);
+  padding: 2.5rem 1.25rem calc(env(safe-area-inset-bottom, 0px) + 2rem);
+  gap: 1.75rem;
+  background: #fff;
+  border-radius: 16px 16px 0 0;
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
@@ -784,20 +810,21 @@
 }
 
 .notesWrapper {
-  flex: 1;
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
-  min-height: 0;
-  overflow: hidden;
+  min-height: 300px;
+  overflow: visible;
   gap: 0.75rem;
 }
 
 .editor {
   font-family: inherit;
-  flex: 1 1 0;
+  flex: 0 0 auto;
   width: 100%;
+  height: 300px;
   min-height: 300px;
-  max-height: 100%;
+  max-height: none;
   padding: 0.75rem;
   font-size: 1rem;
   line-height: 1.625;
@@ -1011,12 +1038,12 @@
 /* フローティングボタン */
 .fab {
   position: fixed;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 1.5rem);
-  right: 1.5rem;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 6rem);
+  right: max(1.5rem, calc((100vw - 500px) / 2 + 1.5rem));
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background-color: #1e90ff;
+  background-color: #08152e;
   color: white;
   border: none;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
@@ -1029,7 +1056,7 @@
 }
 
 .fab:hover {
-  background-color: #0066cc;
+  background-color: #1e2a44;
   transform: scale(1.1);
 }
 
@@ -1078,7 +1105,28 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #f7f7f9;
+  background-color: #f9f9f7;
+}
+
+.headerNotebookButton {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 0.25rem);
+  left: 0.75rem;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 9999px;
+  background: transparent;
+  color: #08152e;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.headerNotebookButton:hover,
+.headerNotebookButton:focus-visible {
+  background: #eeeeec;
 }
 
 .settingsButton {
@@ -1090,7 +1138,7 @@
   border: none;
   border-radius: 9999px;
   background: transparent;
-  color: #6b7280;
+  color: #08152e;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
